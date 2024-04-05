@@ -25,13 +25,13 @@ find_package(rc2024_interfaces REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
 
-set(Ximgproc_DIR "src/ximgproc/include/opencv2" "src/ximgproc/include" "src/ximgproc/src" "include/action_findball" "include")
+set(Include_DIR "src/ximgproc/include/opencv2" "src/ximgproc/include" "src/ximgproc/src" "include/action_findball" "include")
 set(SRC_DIR "src/ximgproc/src/*.cpp")
-include_directories(${OpenCV_INCLUDE_DIRS} ${Ximgproc_DIR})
-file(GLOB_RECURSE SRC_FILES ${SRC_DIR} "src/FindBall.cpp")
+include_directories(${OpenCV_INCLUDE_DIRS} ${Include_DIR})
+file(GLOB_RECURSE SRC_FILES ${SRC_DIR})
 link_directories(${OpenCV_LIB_DIR})
 
-add_executable(publisher_findball src/publisher_findball.cpp ${SRC_FILES})
+add_executable(publisher_findball src/publisher_findball.cpp ${SRC_FILES} "src/FindBall.cpp")
 target_link_libraries(publisher_findball ${OpenCV_LIBS})
 target_include_directories(publisher_findball PRIVATE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 

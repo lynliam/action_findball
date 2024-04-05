@@ -45,7 +45,7 @@ FindBallServer::~FindBallServer()
     usbcamera_deinit();
 }
 
-bool FindBallServer::find_ball(int type, cv::Vec3d &ball_result)
+bool FindBallServer::find_ball(int type, cv::Vec3d &ball_result_)
 {
     cv::Ptr<cv::ximgproc::EdgeDrawing> ed = cv::ximgproc::createEdgeDrawing();
     std::shared_ptr<cv::ximgproc::EdgeDrawing::Params> EDParams = std::make_shared<cv::ximgproc::EdgeDrawing::Params>();
@@ -55,6 +55,14 @@ bool FindBallServer::find_ball(int type, cv::Vec3d &ball_result)
     if (color_image.empty()) {
         return false;
     }
+
+    hsv.release();
+    blendSRaisen.release();
+    mask.release();
+    img.release();
+    gray.release();
+    thre.release();
+    edge_image.release();
 
     cv::cvtColor(color_image, hsv, cv::COLOR_BGR2HSV);
     cv::LUT(hsv, lutRaisen ,blendSRaisen);
@@ -102,11 +110,17 @@ bool FindBallServer::find_ball(int type, cv::Vec3d &ball_result)
         float total_pixels = cv::countNonZero(mask_);
 
         if (white_pixels / total_pixels > 0.6)
+        {
             this->ball_result = max_ellipse;
+            ball_result_ = max_ellipse;
+        }
         else {
             filter_ellipses.erase(filter_ellipses.begin() + 0);
             if(filter_ellipses.size()> 0)
-                this->ball_result = filter_ellipses[0];
+                {
+                    this->ball_result = filter_ellipses[0];
+                    ball_result_ = filter_ellipses[0];
+                }
         }
     }else if (ellipses.size() == 0)
     {
@@ -129,7 +143,10 @@ bool FindBallServer::find_ball(int type, cv::Vec3d &ball_result)
                 });
         
         if(filter_ellipses_.size() > 0)
-            this->ball_result = filter_ellipses[0];
+        {
+            this->ball_result = filter_ellipses_[0];
+            ball_result_ = filter_ellipses_[0];
+        }
     }
     return true;
 }
@@ -197,6 +214,9 @@ bool FindBallServer::findball_with_Kalman(int type, cv::Vec3d &data)
         current_measurement = cv::Vec2f(ref[0], ref[1]);
     Kalman->correct(cv::Mat(current_measurement));
     current_prediction = Kalman->predict();
+    data[0] = current_prediction[0];
+    data[1] = current_prediction[1];
+    data[2] = ref[2];
     current_radius = ref[2];
 
     current_time = (double)cv::getTickCount() / cv::getTickFrequency();

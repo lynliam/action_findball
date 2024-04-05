@@ -31,6 +31,7 @@ namespace PublisherFindballCPP {
                 //publisher_ = this->create_publisher<rc2024_interfaces::msg::BallInfo>("ball_info", 10);
                 findball_server_handler = std::make_shared<FindBallServer>();
                 findball_server_handler->main_init();
+
             }
             ~PublisherFindball()
             {
@@ -39,6 +40,9 @@ namespace PublisherFindballCPP {
 
             void executor()
             {
+                rclcpp::Rate rate(50);
+                RCLCPP_INFO(this->get_logger(), "PublisherFindball thread was created");
+                //findball_server_handler->imgshow_DEBUG_INIT();
                 while(rclcpp::ok())
                 {
                     std::unique_lock<std::mutex> lock(mutex_);
@@ -54,12 +58,14 @@ namespace PublisherFindballCPP {
                         ball_info.balls_info.y = ball_result[1];
                         ball_info.balls_info.z = ball_result[2];
                         ball_info.type = type;
+                        //RCLCPP_INFO(this->get_logger(), "Ball found at x: %f, y: %f, z: %f", ball_result[0], ball_result[1], ball_result[2]);
                         publisher_->publish(ball_info);
                     }
                     else {
                         RCLCPP_INFO(this->get_logger(), "Ball not found");
                     }
-                    cv::waitKey(1);
+                    //findball_server_handler->imgshow_DEBUG();
+                    rate.sleep();
                 }
             }
 
@@ -69,7 +75,6 @@ namespace PublisherFindballCPP {
             on_configure(const rclcpp_lifecycle::State &)
             {
                 publisher_ = this->create_publisher<rc2024_interfaces::msg::BallInfo>("ball_info", 10);
-                std::thread threadOBJ(&PublisherFindball::executor, this);
                 RCLCPP_INFO(get_logger(), "on_configure() is called.");
 
                 // We return a success and hence invoke the transition to the next
@@ -85,6 +90,7 @@ namespace PublisherFindballCPP {
             {
 
                 LifecycleNode::on_activate(state);
+
                 std::unique_lock<std::mutex> lock(mutex_);
                 signal = true;
                 condition_.notify_all();
@@ -103,6 +109,7 @@ namespace PublisherFindballCPP {
             on_deactivate(const rclcpp_lifecycle::State & state)
             {
                 LifecycleNode::on_deactivate(state);
+                RCUTILS_LOG_INFO_NAMED(get_name(), "acquiring lock ...");
                 std::unique_lock<std::mutex> lock(mutex_);
                 signal = false;
                 condition_.notify_all();
@@ -169,10 +176,13 @@ namespace PublisherFindballCPP {
 
 int main(int argc, char * argv[])
 {
+    setvbuf(stdout, NULL, _IONBF, BUFSIZ);
     rclcpp::init(argc, argv);
-    rclcpp::executors::SingleThreadedExecutor exe;
+    rclcpp::executors::MultiThreadedExecutor exe;
+    
     auto node = std::make_shared<PublisherFindballCPP::PublisherFindball>("findball");
     exe.add_node(node->get_node_base_interface());
+    std::thread threadOBJ(&PublisherFindballCPP::PublisherFindball::executor, &(*node));
     exe.spin();
     rclcpp::shutdown();
     return 0;

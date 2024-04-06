@@ -7,6 +7,7 @@
 #include <string>
 #include <iostream>
 
+
 #include "action_catch.hpp"
 
 
@@ -30,20 +31,8 @@ template<typename FutureT, typename WaitTimeT>
     return status;
 }
 
-void action_catch_ball::ActionCatchBall::init()
-{
-    // Every lifecycle node spawns automatically a couple
-    // of services which allow an external interaction with
-    // these nodes.
-    // The two main important ones are GetState and ChangeState.
-    client_get_state_ = this->create_client<lifecycle_msgs::srv::GetState>(
-    node_get_state_topic);
-    client_change_state_ = this->create_client<lifecycle_msgs::srv::ChangeState>(
-    node_change_state_topic);
-}
-
 action_catch_ball::ActionCatchBall::ActionCatchBall(const std::string & node_name,  const rclcpp::NodeOptions & options)
-    :Node(node_name, options)
+    :Node(node_name, options), findball_node_state_(false)
 {
     RCLCPP_INFO(this->get_logger(), "ActionCatchBall Node has been created");
     
@@ -72,9 +61,13 @@ action_catch_ball::ActionCatchBall::ActionCatchBall(const std::string & node_nam
     ballinfo_sub_= this->create_subscription<rc2024_interfaces::msg::BallInfo>("ball_info",10, std::bind(&ActionCatchBall::ballinfo_callback,this,std::placeholders::_1));
 
     sub_notification_ = this->create_subscription<lifecycle_msgs::msg::TransitionEvent>(
-    "/findball/transition_event",
-    10,
-    std::bind(&ActionCatchBall::notification_callback, this, std::placeholders::_1));
+                            "/findball/transition_event", 10, std::bind(&ActionCatchBall::notification_callback, this, std::placeholders::_1));
+
+    chassis_pub_ = this->create_publisher<geometry_msgs::msg::Pose2D>("car/cmd_vel", 2);
+    chassis_sub_ = this->create_subscription<geometry_msgs::msg::Pose2D>("car/ops", 2, std::bind(&ActionCatchBall::get_pose_speed_callback,this,std::placeholders::_1));
+
+    // 等待findball节点上线，并初始化findball节点
+    findball_node_state_ = findball_node_init();
 }
 
 unsigned int action_catch_ball::ActionCatchBall::get_state(std::chrono::seconds timeout)
@@ -187,7 +180,7 @@ void action_catch_ball::ActionCatchBall::execute(const std::shared_ptr<GoalHandl
     while (rclcpp::ok()) {
         if(goal_handle->is_canceling())
         {
-            result->time = this->now().seconds();
+            result->time = this->now().seconds() + this->now().nanoseconds() * 1e-9;
             goal_handle->canceled(result);
             RCLCPP_INFO(this->get_logger(), "Goal canceled");
             return;
@@ -208,10 +201,26 @@ void action_catch_ball::ActionCatchBall::execute(const std::shared_ptr<GoalHandl
 
 bool action_catch_ball::ActionCatchBall::findball_node_init()
 {
-    if(!change_state(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE))
+    rclcpp::Rate loop_rate(2);
+    float time_now = this->now().seconds() + this->now().nanoseconds() * 1e-9;
+    while(!client_get_state_->wait_for_service(std::chrono::seconds(2)))
     {
-        RCLCPP_ERROR(this->get_logger(), "Failed to configure node %s", lifecycle_node);
-        return false;
+        RCLCPP_INFO(this->get_logger(), "Service %s not available now, continue waitting...", client_get_state_->get_service_name());
+        if (this->now().seconds() + this->now().nanoseconds() * 1e-9 - time_now > 15.0)
+            return false;
+        loop_rate.sleep();
+    }
+    if(this->get_state() == lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED)
+    {
+        if(!change_state(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE))
+        {
+            RCLCPP_ERROR(this->get_logger(), "Failed to configure node %s", lifecycle_node);
+            return false;
+        }
+        if (!this->get_state()) {
+            RCLCPP_ERROR(this->get_logger(), "Failed to get state for node %s", lifecycle_node);
+            return false;
+        }
     }
     return true;
 }
@@ -266,6 +275,35 @@ RCLCPP_INFO(
     msg->start_state.label.c_str(), msg->goal_state.label.c_str());
 }
 
+void action_catch_ball::ActionCatchBall::get_pose_speed_callback(const geometry_msgs::msg::Pose2D::SharedPtr msg)
+{
+    std::unique_lock<std::mutex> lock(variable_mutex_);
+    ChassisPa.x = msg->x;
+    ChassisPa.y = msg->y;
+    ChassisPa.theta = msg->theta;
+    vel_cal.cal_vel(ChassisPa, this->now().seconds(), this->now().nanoseconds(), ChassisPv);
+}
+
+action_catch_ball::VelCal::VelCal():last_time(0.0)
+{
+    Pa_last.x = 0;
+    Pa_last.y = 0;
+    Pa_last.theta = 0;
+}
+
+void action_catch_ball::VelCal::cal_vel(geometry_msgs::msg::Pose2D &Pa, float time_s, float time_ns, geometry_msgs::msg::Pose2D &vel)
+{
+    float time_now = time_s + time_ns * 1e-9;
+    float dt = time_now - last_time;
+    vel.x = (Pa.x - Pa_last.x) / dt;
+    vel.y = (Pa.y - Pa_last.y) / dt;
+    vel.theta = (Pa.theta - Pa_last.theta) / dt;
+    Pa_last.x = Pa.x;
+    Pa_last.y = Pa.y;
+    Pa_last.theta = Pa.theta;
+    last_time = time_now;
+}
+
 int main(int argc, char * argv[])
 {
     setvbuf(stdout, NULL, _IONBF, BUFSIZ);
@@ -273,7 +311,6 @@ int main(int argc, char * argv[])
     rclcpp::executors::MultiThreadedExecutor executor;
     auto action_catch = std::make_shared<action_catch_ball::ActionCatchBall>("action_catch");
     executor.add_node(action_catch);
-    //action_catch->test_lifeycle();
     executor.spin();
     rclcpp::shutdown();
     return 0;

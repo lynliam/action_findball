@@ -24,6 +24,7 @@ find_package(OpenCV 4.9.0 REQUIRED)
 find_package(rc2024_interfaces REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
 set(Include_DIR "src/ximgproc/include/opencv2" "src/ximgproc/include" "src/ximgproc/src" "include/action_findball" "include")
 set(SRC_DIR "src/ximgproc/src/*.cpp")
@@ -49,7 +50,8 @@ ament_target_dependencies(action_catchball
     "rclcpp_action"
     "lifecycle_msgs"
     "rclcpp_lifecycle"
-    "rc2024_interfaces")
+    "rc2024_interfaces"
+    "geometry_msgs")
 
 install(TARGETS
   publisher_findball

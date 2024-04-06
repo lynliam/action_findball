@@ -1,0 +1,6 @@
+#ifndef CHASSIS_INFO_HPP
+#define CHASSIS_INFO_HPP
+
+
+
+#endif // CHASSIS_INFO_HPP

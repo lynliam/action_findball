@@ -31,7 +31,6 @@ namespace PublisherFindballCPP {
                 //publisher_ = this->create_publisher<rc2024_interfaces::msg::BallInfo>("ball_info", 10);
                 findball_server_handler = std::make_shared<FindBallServer>();
                 findball_server_handler->main_init();
-
             }
             ~PublisherFindball()
             {
@@ -49,6 +48,7 @@ namespace PublisherFindballCPP {
                     condition_.wait(lock, [this]{return signal;});
                     if(stop)
                         break;
+                    lock.unlock();
                     auto ball_info = rc2024_interfaces::msg::BallInfo();
                     auto type = this->get_parameter("balltype").as_int();
                     cv::Vec3d ball_result;
@@ -58,7 +58,7 @@ namespace PublisherFindballCPP {
                         ball_info.balls_info.y = ball_result[1];
                         ball_info.balls_info.z = ball_result[2];
                         ball_info.type = type;
-                        //RCLCPP_INFO(this->get_logger(), "Ball found at x: %f, y: %f, z: %f", ball_result[0], ball_result[1], ball_result[2]);
+                        RCLCPP_INFO(this->get_logger(), "Ball found at x: %f, y: %f, z: %f", ball_result[0], ball_result[1], ball_result[2]);
                         publisher_->publish(ball_info);
                     }
                     else {
@@ -88,9 +88,7 @@ namespace PublisherFindballCPP {
             rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
             on_activate(const rclcpp_lifecycle::State & state)
             {
-
                 LifecycleNode::on_activate(state);
-
                 std::unique_lock<std::mutex> lock(mutex_);
                 signal = true;
                 condition_.notify_all();
@@ -111,6 +109,10 @@ namespace PublisherFindballCPP {
                 LifecycleNode::on_deactivate(state);
                 RCUTILS_LOG_INFO_NAMED(get_name(), "acquiring lock ...");
                 std::unique_lock<std::mutex> lock(mutex_);
+                findball_server_handler->Kalman->init(4,2);
+                findball_server_handler->Kalman->measurementMatrix = (cv::Mat_<float>(2, 4) << 1, 0, 0, 0, 0, 1, 0, 0);
+                findball_server_handler->Kalman->transitionMatrix = (cv::Mat_<float>(4, 4) << 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1);
+                findball_server_handler->Kalman->processNoiseCov = (cv::Mat_<float>(4, 4) << 0.01, 0, 0, 0, 0, 0.01, 0, 0, 0, 0, 0.01, 0, 0, 0, 0, 0.01);
                 signal = false;
                 condition_.notify_all();
                 RCUTILS_LOG_INFO_NAMED(get_name(), "on_deactivate() is called.");

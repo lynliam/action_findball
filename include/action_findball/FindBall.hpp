@@ -1,6 +1,8 @@
 #ifndef FINDBALL_HPP
 #define FINDBALL_HPP
 
+//   #define ENABLE_THRESHOLD
+
 #include <memory>
 #include <opencv2/core/mat.hpp>
 #include <opencv2/core/matx.hpp>
@@ -42,6 +44,8 @@ class FindBallServer
     void imgshow_DEBUG_INIT();
     void imgshow_DEBUG();
 
+    std::shared_ptr<cv::KalmanFilter> Kalman;
+
     private:
     void lut_init();
     std::vector<cv::Scalar> lower = {lower_red, lower_purple, lower_blue};
@@ -79,7 +83,7 @@ class FindBallServer
     cv::Vec4f last_prediction ;
     cv::Vec4f current_prediction ;
     float current_radius;
-    std::shared_ptr<cv::KalmanFilter> Kalman;
+    
 
         // 计时开始
     double start_time;

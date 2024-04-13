@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<pid>
+    <x>
+        <kp>0.0004</kp>
+        <ki>0.00001</ki>
+        <kd>0.001</kd>
+    </x>
+    <y>
+        <kp>0.0006</kp>
+        <ki>0.00001</ki>
+        <kd>0.0001</kd>
+    </y>
+    <w>
+        <kp>2.1</kp>
+        <ki>0.006</ki>
+        <kd>5.0</kd>
+    </w>
+</pid>

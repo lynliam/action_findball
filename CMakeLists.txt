@@ -6,13 +6,13 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# Default to C++14
-if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 17)
-endif()
+# Default to C++17
+
+set(CMAKE_CXX_STANDARD 17)
 
 
-# colcon build --packages-select action_findball --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+# colcon build --packages-select action_findball --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON --parallel-workers 12
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
@@ -26,8 +26,8 @@ find_package(rclcpp_lifecycle REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 
-set(Include_DIR "src/ximgproc/include/opencv2" "src/ximgproc/include" "src/ximgproc/src" "include/action_findball" "include")
-set(SRC_DIR "src/ximgproc/src/*.cpp")
+set(Include_DIR "src/ximgproc/include/opencv2" "src/ximgproc/include" "src/ximgproc/src" "include/action_findball" "include" "src/tinyxml2")
+set(SRC_DIR "src/ximgproc/src/*.cpp" )
 include_directories(${OpenCV_INCLUDE_DIRS} ${Include_DIR})
 file(GLOB_RECURSE SRC_FILES ${SRC_DIR})
 link_directories(${OpenCV_LIB_DIR})
@@ -44,8 +44,8 @@ ament_target_dependencies(publisher_findball
     "lifecycle_msgs"
     "rc2024_interfaces")
 
-add_executable(action_catchball src/action_catch.cpp)
-ament_target_dependencies(action_catchball
+add_executable(catchball_server src/action_catch.cpp src/tinyxml2/tinyxml2.cpp)
+ament_target_dependencies(catchball_server
     "rclcpp"
     "rclcpp_action"
     "lifecycle_msgs"
@@ -55,8 +55,18 @@ ament_target_dependencies(action_catchball
 
 install(TARGETS
   publisher_findball
-  action_catchball
+  catchball_server
   DESTINATION lib/${PROJECT_NAME})
+
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}/
+)
+
+install(DIRECTORY
+  xml
+  DESTINATION share/${PROJECT_NAME}/
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

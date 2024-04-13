@@ -2593,7 +2593,7 @@ void EdgeDrawingImpl::detectEllipses(OutputArray ellipses)
     }
 
     // This is how much space we will allocate for circles buffers
-    int maxNoOfCircles = (int)lines.size() / 3 + noCircles1 * 2;
+    int maxNoOfCircles = (int)lines.size() / 3 + noCircles1 * 2 + 2;
 
     edarcs1 = new EDArcs(maxNoOfCircles);
     DetectArcs();    // Detect all arcs
@@ -3202,19 +3202,20 @@ void EdgeDrawingImpl::ValidateCircles(bool validate)
             //
             if (edgeImg[r * width + c] != 255)
             {
-                //   y-cy=-x-cx    y-cy=x-cx
-                //         \       /
-                //          \ IV. /
-                //           \   /
-                //            \ /
-                //     III.    +   I. quadrant
-                //            / \
-                //           /   \
-                //          / II. \
-                //         /       \
-                //
-                // (x, y)-->(x-cx, y-cy)
-                //
+                /*
+                  y-cy=-x-cx    y-cy=x-cx
+                        \       /
+                         \ IV. /
+                          \   /
+                           \ /
+                    III.    +   I. quadrant
+                           / \
+                          /   \
+                         / II. \
+                        /       \
+                
+                (x, y)-->(x-cx, y-cy)
+                */
 
                 int x = c;
                 int y = r;

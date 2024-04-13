@@ -4,6 +4,7 @@
 //#define ENABLE_THRESHOLD
 #define ENABLE_IMSHOW
 
+
 #ifdef ENABLE_THRESHOLD
 // Trackbar callback function
 void onTrackbar(int, void*) {
@@ -13,8 +14,8 @@ void onTrackbar(int, void*) {
 
 enum BallType { RED = 0, PURPLE = 1, BLUE = 2 };
 
-cv::Scalar lower_purple = cv::Scalar(181, 132, 0);
-cv::Scalar upper_purple = cv::Scalar(202, 255, 255);
+cv::Scalar lower_purple = cv::Scalar(180, 160, 0);
+cv::Scalar upper_purple = cv::Scalar(220, 255, 255);
 cv::Scalar lower_red = cv::Scalar(117, 143, 0);
 cv::Scalar upper_red = cv::Scalar(133, 255, 255);
 cv::Scalar lower_blue = cv::Scalar(0, 159, 0);
@@ -31,7 +32,7 @@ FindBallServer::FindBallServer():   lutEqual(256), lutZero(256, 0), lutRaisen(25
     Kalman = std::make_shared<cv::KalmanFilter>(4, 2);
     Kalman->measurementMatrix = (cv::Mat_<float>(2, 4) << 1, 0, 0, 0, 0, 1, 0, 0);
     Kalman->transitionMatrix = (cv::Mat_<float>(4, 4) << 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1);
-    Kalman->processNoiseCov = (cv::Mat_<float>(4, 4) << 0.0001, 0, 0, 0, 0, 0.0001, 0, 0, 0, 0, 0.0001, 0, 0, 0, 0, 0.0001);
+    Kalman->processNoiseCov = (cv::Mat_<float>(4, 4) << 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1);
 
     #ifdef ENABLE_THRESHOLD
     lowH = 184, lowS = 118, lowV = 150;
@@ -63,6 +64,8 @@ bool FindBallServer::find_ball(int type, cv::Vec3d &ball_result_)
     gray.release();
     thre.release();
     edge_image.release();
+    filter_ellipses.clear();
+    ellipses.clear();
 
     cv::cvtColor(color_image, hsv, cv::COLOR_BGR2HSV);
     cv::LUT(hsv, lutRaisen ,blendSRaisen);
@@ -81,11 +84,12 @@ bool FindBallServer::find_ball(int type, cv::Vec3d &ball_result_)
     ed->detectEdges(thre);
     ed->getEdgeImage(edge_image);
 
-    cv::ximgproc::findEllipses(edge_image, ells, 0.4f, 0.7f, 0.02f);
-    if (ells.size() > 0)
-    {
-        ed->detectEllipses(ellipses);
-    }
+    //cv::ximgproc::findEllipses(edge_image, ells, 0.4f, 0.7f, 0.02f);
+    //if (ells.size() > 0)
+    //{
+        //ed->detectEllipses(ellipses);
+    //}
+    ed->detectEllipses(ellipses);
 
     for (size_t i=0; i<ellipses.size(); i++)
     {

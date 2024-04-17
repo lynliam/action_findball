@@ -18,12 +18,12 @@ cv::Scalar lower_purple = cv::Scalar(180, 160, 0);
 cv::Scalar upper_purple = cv::Scalar(220, 255, 255);
 cv::Scalar lower_red = cv::Scalar(117, 143, 0);
 cv::Scalar upper_red = cv::Scalar(133, 255, 255);
-cv::Scalar lower_blue = cv::Scalar(0, 159, 0);
-cv::Scalar upper_blue = cv::Scalar(16, 255, 255);
+cv::Scalar lower_blue = cv::Scalar(99, 50, 10);
+cv::Scalar upper_blue = cv::Scalar(126, 207, 255);
 
 FindBallServer::FindBallServer():   lutEqual(256), lutZero(256, 0), lutRaisen(256), lutSRaisen(256, 256, CV_8UC3), 
                                     start_time(0.0), current_time(0.0), frame_number(-1), frame_number_record(-1), 
-                                    frames_per_second(0), elapsed_seconds(0.0)
+                                    frames_per_second(0), elapsed_seconds(0.0),mask_flag(0)
 {
     std::cout << "FindBallServer created" << std::endl;
     cap = std::make_shared<cv::VideoCapture>();
@@ -69,7 +69,7 @@ bool FindBallServer::find_ball(int type, cv::Vec3d &ball_result_)
 
     cv::cvtColor(color_image, hsv, cv::COLOR_BGR2HSV);
     cv::LUT(hsv, lutRaisen ,blendSRaisen);
-    cv::inRange(blendSRaisen, this->lower[type], this->upper[type], mask);
+    cv::inRange(hsv, this->lower[type], this->upper[type], mask);
     cv::bitwise_and(color_image, color_image, img, mask);
     cv::medianBlur(img, img, 7);
     cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
@@ -80,6 +80,17 @@ bool FindBallServer::find_ball(int type, cv::Vec3d &ball_result_)
     for (auto contour : contours) {
         cv::fillPoly(thre, contour, cv::Scalar(255, 255, 255));
     }
+
+    std::vector<std::vector<cv::Point>> pts_1 = {
+        {{0,480}, {0, 390}, {213, 299}, {208, 299}, {208, 460}, {429, 460}, {420, 303},{461,300},{640,376},{640,480}}};
+
+    std::vector<std::vector<cv::Point>> pts_2 ={
+        {{94,480},{142,417},{205,417},{205,422},{224,422},{225,480}},{{430,480},{424,423},{515,411},{522,460},{571,480}}
+    };
+    if(mask_flag == 0)
+        cv::fillPoly(thre, pts_2, cv::Scalar(0, 0, 0)); // 黑色填充
+    else if(mask_flag == 1)
+        cv::fillPoly(thre, pts_1, cv::Scalar(0, 0, 0)); // 黑色填充
 
     ed->detectEdges(thre);
     ed->getEdgeImage(edge_image);
@@ -100,35 +111,72 @@ bool FindBallServer::find_ball(int type, cv::Vec3d &ball_result_)
     // 使用 lambda 表达式进行排序
     std::sort(filter_ellipses.begin(), filter_ellipses.end(), 
             [](const cv::Vec3d& a, const cv::Vec3d& b) {
-            return a[1] > b[1]; // 按 center.y 降序排序
+            return ((a[1]-480)*(a[1]-480) + (a[0]-328)*(a[0]-328)) < ((b[1]-480)*(b[1]-480) + (b[0]-328)*(b[0]-328)); // 按 center.y 降序排序
             });
 
     if (ellipses.size() > 0)
     {
-        cv::Mat circle_region;
-        cv::Vec3d max_ellipse = filter_ellipses[0];
-        cv::Mat mask_  = cv::Mat::zeros(thre.size(), CV_8UC1);
-        cv::circle(mask_, cv::Point(int(max_ellipse[0]), int(max_ellipse[1])), int(max_ellipse[2]), cv::Scalar(255), -1);
-        cv::bitwise_and(thre, mask_, circle_region);
-        float white_pixels = cv::countNonZero(circle_region);
-        float total_pixels = cv::countNonZero(mask_);
-
-        if (white_pixels / total_pixels > 0.6)
+        for(auto &ellipse : filter_ellipses)
         {
-            this->ball_result = max_ellipse;
-            ball_result_ = max_ellipse;
+            cv::Mat circle_region;
+            cv::Vec3d max_ellipse = ellipse;
+            cv::Mat mask_  = cv::Mat::zeros(thre.size(), CV_8UC1);
+            cv::circle(mask_, cv::Point(int(max_ellipse[0]), int(max_ellipse[1])), int(max_ellipse[2]), cv::Scalar(255), -1);
+            cv::bitwise_and(thre, mask_, circle_region);
+            float white_pixels = cv::countNonZero(circle_region);
+            float total_pixels = cv::countNonZero(mask_);
+        
+            if (white_pixels / total_pixels > 0.3 && ellipse[2] > 30)
+            {
+                this->ball_result = max_ellipse;
+                ball_result_ = max_ellipse;
+                break;
+            }
         }
-        else {
-            filter_ellipses.erase(filter_ellipses.begin() + 0);
-            if(filter_ellipses.size()> 0)
-                {
-                    this->ball_result = filter_ellipses[0];
-                    ball_result_ = filter_ellipses[0];
-                }
-        }
-    }else if (ellipses.size() == 0)
+    }
+    else if (ellipses.size() == 0)
     {
-        std::vector<cv::Vec3d> filter_ellipses_ ;
+        return false;
+        std::vector<cv::Vec3d> colorblocks;
+        // 寻找轮廓
+        std::vector<std::vector<cv::Point>> contours;
+        cv::findContours(thre, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+        // 遍历每个轮廓，计算边界框并绘制
+        for (const auto& contour : contours) {
+            cv::Point2f center_;
+            float radius_;
+            cv::minEnclosingCircle(contour, center_, radius_);
+            cv::Mat circle_region;
+            cv::Mat mask_  = cv::Mat::zeros(thre.size(), CV_8UC1);
+            cv::circle(mask_, cv::Point(int(center_.x), int(center_.y)), int(radius_), cv::Scalar(255), -1);
+            cv::bitwise_and(thre, mask_, circle_region);
+            float white_pixels = cv::countNonZero(circle_region);
+            if(white_pixels > 1000)
+            {
+                cv::fillPoly(thre, contour, cv::Scalar(255, 255, 255));
+                cv::circle(color_image, center_, radius_, cv::Scalar(255, 255, 0), 2);
+                colorblocks.push_back(cv::Vec3d(center_.x, center_.y,radius_));
+            }
+        }
+        std::sort(colorblocks.begin(), colorblocks.end(), 
+            [](const cv::Vec3d& a, const cv::Vec3d& b) {
+            return a[1] > b[1]; // 按 center.y 降序排序
+            });
+        
+        // if(colorblocks.size() > 0)
+        // {
+        //     this->ball_result = colorblocks[0];
+        //     ball_result_ = colorblocks[0];
+        // }else{
+        //     return false;
+        // }
+    }
+    return true;
+}
+
+/*
+std::vector<cv::Vec3d> filter_ellipses_ ;
         std::vector<std::vector<cv::Point>> contours_;
         cv::findContours(thre, contours_, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
         for (auto contour : contours_) {
@@ -151,9 +199,7 @@ bool FindBallServer::find_ball(int type, cv::Vec3d &ball_result_)
             this->ball_result = filter_ellipses_[0];
             ball_result_ = filter_ellipses_[0];
         }
-    }
-    return true;
-}
+*/
 
 bool FindBallServer::usbcamera_init()
 {

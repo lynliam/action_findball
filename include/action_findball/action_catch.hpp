@@ -36,6 +36,12 @@ namespace action_catch_ball {
         PutBall = 8,
         ChangeAngle = 16
     };
+
+    enum class CatchBallState{
+        SUCCEED = 1,
+        CANCEL = 2,
+        TIMEOUT = 3
+    };
     class VelCal 
     {
         public:
@@ -123,6 +129,7 @@ namespace action_catch_ball {
             // 速度计算
             VelCal vel_cal;
             geometry_msgs::msg::Point32 ball_info;
+            bool is_found;
 
             //PID Controller
             PIDController PIDController_x;
@@ -138,6 +145,7 @@ namespace action_catch_ball {
             int acquire_PID_variable();
             int acquire_goal();
             float test_goal;
+
     };
 
 }// namespace action_catch_ball

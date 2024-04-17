@@ -1,5 +1,6 @@
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <vector>
 #include <thread>
 #include <functional>
@@ -11,6 +12,7 @@
 
 #include "FindBall.hpp"
 #include "rc2024_interfaces/msg/ball_info.hpp"
+#include "std_msgs/msg/u_int32.hpp"
 
 // rclcpp生命周期节点
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
@@ -24,13 +26,18 @@ namespace PublisherFindballCPP {
         public:
             explicit PublisherFindball(const std::string & node_name, bool intra_process_comms = false)
             :rclcpp_lifecycle::LifecycleNode(node_name,rclcpp::NodeOptions().use_intra_process_comms(intra_process_comms)),
-            signal(false),stop(false)
+            mask_flag(0),signal(false),stop(false)
             {
                 RCLCPP_INFO(this->get_logger(), "PublisherFindball Node has been created");
-                this->declare_parameter<int>("balltype", 1);
+                this->declare_parameter<int>("balltype", 2);
                 //publisher_ = this->create_publisher<rc2024_interfaces::msg::BallInfo>("ball_info", 10);
                 findball_server_handler = std::make_shared<FindBallServer>();
+                //findball_server_handler_blue = std::make_shared<FindBallServer>();
+                //findball_server_handler_red = std::make_shared<FindBallServer>();
+                this->create_subscription<std_msgs::msg::UInt32>("up_cmd", 2, std::bind(&PublisherFindball::up_cmd_callback, this, std::placeholders::_1));
                 findball_server_handler->main_init();
+                //findball_server_handler_blue->main_init();
+                //findball_server_handler_red->main_init();
             }
             ~PublisherFindball()
             {
@@ -41,6 +48,7 @@ namespace PublisherFindballCPP {
             {
                 rclcpp::Rate rate(50);
                 RCLCPP_INFO(this->get_logger(), "PublisherFindball thread was created");
+                std::unique_lock<std::mutex> lock_flag(mutex_flag, std::defer_lock);
                 //findball_server_handler->imgshow_DEBUG_INIT();
                 while(rclcpp::ok())
                 {
@@ -52,20 +60,44 @@ namespace PublisherFindballCPP {
                     auto ball_info = rc2024_interfaces::msg::BallInfo();
                     auto type = this->get_parameter("balltype").as_int();
                     cv::Vec3d ball_result;
+                    lock_flag.lock();
+                    findball_server_handler->mask_flag = mask_flag;
+                    lock_flag.unlock();
                     if(findball_server_handler->findball_with_Kalman(type, ball_result))
                     {
                         ball_info.balls_info.x = ball_result[0];
                         ball_info.balls_info.y = ball_result[1];
                         ball_info.balls_info.z = ball_result[2];
                         ball_info.type = type;
+                        ball_info.is_found = true;
                         RCLCPP_INFO(this->get_logger(), "Ball found at x: %f, y: %f, z: %f", ball_result[0], ball_result[1], ball_result[2]);
                         publisher_->publish(ball_info);
                     }
                     else {
                         RCLCPP_INFO(this->get_logger(), "Ball not found");
+                        ball_info.balls_info.x = 0;
+                        ball_info.balls_info.y = 0;
+                        ball_info.balls_info.z = 0;
+                        ball_info.type = 10;
+                        ball_info.is_found = false;
+                        publisher_->publish(ball_info);
                     }
                     //findball_server_handler->imgshow_DEBUG();
                     rate.sleep();
+                }
+            }
+
+            void up_cmd_callback(const std_msgs::msg::UInt32::SharedPtr msg)
+            {
+
+                if(msg->data > 1000)
+                {
+                    std::unique_lock<std::mutex> lock_flag(mutex_flag);
+                    if(msg->data == 3500)
+                        mask_flag = 0;
+                    else if(msg->data == 3350)
+                        mask_flag =1;
+                    lock_flag.unlock();
                 }
             }
 
@@ -167,8 +199,12 @@ namespace PublisherFindballCPP {
         private:
             std::shared_ptr<rclcpp_lifecycle::LifecyclePublisher<rc2024_interfaces::msg::BallInfo>> publisher_;
             std::shared_ptr<FindBallServer> findball_server_handler;
+            //std::shared_ptr<FindBallServer> findball_server_handler_blue;
+            //std::shared_ptr<FindBallServer> findball_server_handler_red;
 
             std::mutex mutex_;
+            std::mutex mutex_flag;
+            int mask_flag;
             std::condition_variable condition_;
             bool signal;
             bool stop;

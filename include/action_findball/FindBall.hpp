@@ -45,6 +45,7 @@ class FindBallServer
     void imgshow_DEBUG();
 
     std::shared_ptr<cv::KalmanFilter> Kalman;
+    int mask_flag;
 
     private:
     void lut_init();
@@ -92,6 +93,8 @@ class FindBallServer
     int frame_number_record;
     int frames_per_second;
     double elapsed_seconds;
+
+    
 
     //DEGUB
     // Global variables to hold the threshold values

@@ -25,14 +25,15 @@ find_package(rc2024_interfaces REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
 set(Include_DIR "src/ximgproc/include/opencv2" "src/ximgproc/include" "src/ximgproc/src" "include/action_findball" "include" "src/tinyxml2")
-set(SRC_DIR "src/ximgproc/src/*.cpp" )
+set(SRC_DIR "src/ximgproc/src/*.cpp")
 include_directories(${OpenCV_INCLUDE_DIRS} ${Include_DIR})
 file(GLOB_RECURSE SRC_FILES ${SRC_DIR})
 link_directories(${OpenCV_LIB_DIR})
 
-add_executable(publisher_findball src/publisher_findball.cpp ${SRC_FILES} "src/FindBall.cpp")
+add_executable(publisher_findball src/publisher_findball.cpp ${SRC_FILES} "src/FindBall.cpp" "src/camera_distribute.cpp" "src/tinyxml2/tinyxml2.cpp")
 target_link_libraries(publisher_findball ${OpenCV_LIBS})
 target_include_directories(publisher_findball PRIVATE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
@@ -44,14 +45,16 @@ ament_target_dependencies(publisher_findball
     "lifecycle_msgs"
     "rc2024_interfaces")
 
-add_executable(catchball_server src/action_catch.cpp src/tinyxml2/tinyxml2.cpp)
+add_executable(catchball_server src/action_catch.cpp "src/tinyxml2/tinyxml2.cpp")
+target_link_libraries(catchball_server ${OpenCV_LIBS})
 ament_target_dependencies(catchball_server
     "rclcpp"
     "rclcpp_action"
     "lifecycle_msgs"
     "rclcpp_lifecycle"
     "rc2024_interfaces"
-    "geometry_msgs")
+    "geometry_msgs"
+    "sensor_msgs")
 
 install(TARGETS
   publisher_findball

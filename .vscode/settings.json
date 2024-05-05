@@ -1,0 +1,34 @@
+{
+    "python.autoComplete.extraPaths": [
+        "/home/wtr2023/ros_ws/rc2024/RC24_R2V2/install/rc24_r2_v2_ros2/lib/python3.10/site-packages",
+        "/home/wtr2023/ros_ws/rc2024/RC24_R2V2/install/r2v2_py_behavior_server/lib/python3.10/site-packages",
+        "/home/wtr2023/ros_ws/rc2024/RC24_R2V2/install/rc2024_interfaces/local/lib/python3.10/dist-packages",
+        "/home/wtr2023/ros_ws/rc2024/RC24_R2V2/install/r2v2_commander/lib/python3.10/site-packages",
+        "/home/wtr2023/ros_ws/rc2024/RC24_R2V2/install/dwb_msgs/local/lib/python3.10/dist-packages",
+        "/home/wtr2023/ros_ws/rc2024/RC24_R2V2/install/nav_2d_msgs/local/lib/python3.10/dist-packages",
+        "/home/wtr2023/ros_ws/rc2024/RC24_R2V2/install/nav2_simple_commander/lib/python3.10/site-packages",
+        "/home/wtr2023/ros_ws/rc2024/RC24_R2V2/install/nav2_msgs/local/lib/python3.10/dist-packages",
+        "/home/wtr2023/ros_ws/rc2024/RC24_R2V2/install/nav2_common/local/lib/python3.10/dist-packages",
+        "/home/wtr2023/ros_ws/rc2024/RC24_R2V2/install/fast_lio/local/lib/python3.10/dist-packages",
+        "/home/wtr2023/ros_ws/rc2024/RC24_R2V2/install/livox_ros_driver2/local/lib/python3.10/dist-packages",
+        "/home/wtr2023/ros_ws/rc2024/ws_livox/install/livox_ros_driver2/local/lib/python3.10/dist-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/home/wtr2023/ros_ws/rc2024/RC24_R2V2/install/rc24_r2_v2_ros2/lib/python3.10/site-packages",
+        "/home/wtr2023/ros_ws/rc2024/RC24_R2V2/install/r2v2_py_behavior_server/lib/python3.10/site-packages",
+        "/home/wtr2023/ros_ws/rc2024/RC24_R2V2/install/rc2024_interfaces/local/lib/python3.10/dist-packages",
+        "/home/wtr2023/ros_ws/rc2024/RC24_R2V2/install/r2v2_commander/lib/python3.10/site-packages",
+        "/home/wtr2023/ros_ws/rc2024/RC24_R2V2/install/dwb_msgs/local/lib/python3.10/dist-packages",
+        "/home/wtr2023/ros_ws/rc2024/RC24_R2V2/install/nav_2d_msgs/local/lib/python3.10/dist-packages",
+        "/home/wtr2023/ros_ws/rc2024/RC24_R2V2/install/nav2_simple_commander/lib/python3.10/site-packages",
+        "/home/wtr2023/ros_ws/rc2024/RC24_R2V2/install/nav2_msgs/local/lib/python3.10/dist-packages",
+        "/home/wtr2023/ros_ws/rc2024/RC24_R2V2/install/nav2_common/local/lib/python3.10/dist-packages",
+        "/home/wtr2023/ros_ws/rc2024/RC24_R2V2/install/fast_lio/local/lib/python3.10/dist-packages",
+        "/home/wtr2023/ros_ws/rc2024/RC24_R2V2/install/livox_ros_driver2/local/lib/python3.10/dist-packages",
+        "/home/wtr2023/ros_ws/rc2024/ws_livox/install/livox_ros_driver2/local/lib/python3.10/dist-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ]
+}

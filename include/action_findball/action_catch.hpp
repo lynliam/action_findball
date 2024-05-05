@@ -9,6 +9,7 @@
 #include "geometry_msgs/msg/point32.hpp"
 #include "std_msgs/msg/u_int32.hpp"
 #include "std_msgs/msg/float32_multi_array.hpp"
+#include "sensor_msgs/msg/joint_state.hpp"
 
 #include "lifecycle_msgs/msg/state.hpp"
 #include "lifecycle_msgs/msg/transition.hpp"
@@ -18,7 +19,9 @@
 
 #include <mutex>
 #include <std_msgs/msg/detail/float32_multi_array__struct.hpp>
+#include <vector>
 #include "chassis_related.hpp"
+#include <opencv2/opencv.hpp>
 
 // ros2 action send_goal /catch_ball rc2024_interfaces/action/CatchBall "{color: 1}"
 
@@ -128,7 +131,8 @@ namespace action_catch_ball {
 
             // 速度计算
             VelCal vel_cal;
-            geometry_msgs::msg::Point32 ball_info;
+            std::vector<geometry_msgs::msg::Point32> ball_info;
+            std::vector<geometry_msgs::msg::Point32> purple_info;
             bool is_found;
 
             //PID Controller
@@ -145,6 +149,20 @@ namespace action_catch_ball {
             int acquire_PID_variable();
             int acquire_goal();
             float test_goal;
+
+            bool up_decision_making();
+            bool jaw_decision_making();
+
+            //kalman
+                    // Kalman variables
+            cv::Vec2f last_measurement;
+            cv::Vec2f current_measurement ;
+            cv::Vec4f last_prediction ;
+            cv::Vec4f current_prediction ;
+            int current_radius;
+            int last_radius;
+            std::shared_ptr<cv::KalmanFilter> Kalman;
+            geometry_msgs::msg::Point32 tracking_ball;
 
     };
 

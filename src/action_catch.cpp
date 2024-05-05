@@ -1,8 +1,10 @@
 #include <memory>
 #include <mutex>
 #include <rclcpp/logging.hpp>
+#include <sensor_msgs/msg/detail/joint_state__struct.hpp>
 #include <std_msgs/msg/detail/float32_multi_array__struct.hpp>
 #include <std_msgs/msg/detail/u_int32__builder.hpp>
+
 #include <vector>
 #include <thread>
 #include <functional>
@@ -91,6 +93,11 @@ action_catch_ball::ActionCatchBall::ActionCatchBall(const std::string & node_nam
     PIDController_w.PID_MaxMin(50, -50);
     PIDController_w.integralMax = 30;
     PIDController_w.integralMin = -30;
+
+    Kalman = std::make_shared<cv::KalmanFilter>(4, 2);
+    Kalman->measurementMatrix = (cv::Mat_<float>(2, 4) << 1, 0, 0, 0, 0, 1, 0, 0);
+    Kalman->transitionMatrix = (cv::Mat_<float>(4, 4) << 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1);
+    Kalman->processNoiseCov = (cv::Mat_<float>(4, 4) << 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1);
 
     acquire_PID_variable();
     // std_msgs::msg::UInt32 test; 
@@ -198,13 +205,12 @@ void action_catch_ball::ActionCatchBall::execute(const std::shared_ptr<GoalHandl
     int count = 0;
     acquire_PID_variable();
     std::unique_lock<std::mutex> lock(variable_mutex_);
-    ball_info.x = 0.0;
-    ball_info.y = 0.0;
-    ball_info.z = 0.0;
+    ball_info.clear();
+    purple_info.clear();
     lock.unlock();
-    std_msgs::msg::UInt32 test; 
-    test.data = 3500;
-    up_pub_->publish(test);
+
+    std::shared_ptr< sensor_msgs::msg::JointState> msg_to_pub = std::make_shared<sensor_msgs::msg::JointState>(); 
+
     rclcpp::Rate loop_rate(20);
     rclcpp::Rate action_rate(2);
     const auto goal = goal_handle->get_goal();
@@ -232,6 +238,8 @@ void action_catch_ball::ActionCatchBall::execute(const std::shared_ptr<GoalHandl
     RCLCPP_INFO(this->get_logger(), "UpCmd: %d", up_cmd.data);
     up_pub_->publish(up_cmd);
     action_rate.sleep();
+
+    //开始执行
     while (rclcpp::ok()) {
         if(goal_handle->is_canceling())
         {
@@ -248,7 +256,8 @@ void action_catch_ball::ActionCatchBall::execute(const std::shared_ptr<GoalHandl
             return;
         }
         lock.lock();
-        geometry_msgs::msg::Point32 ballinfo__ =ball_info;        
+        std::vector<geometry_msgs::msg::Point32> ballinfo__ =ball_info;        
+        std::vector<geometry_msgs::msg::Point32> purpleinfo__ =purple_info;
         bool is_found_ = is_found;
         lock.unlock();
 
@@ -358,6 +367,10 @@ void action_catch_ball::ActionCatchBall::execute(const std::shared_ptr<GoalHandl
 
 void action_catch_ball::ActionCatchBall::test_execute(const std::shared_ptr<GoalHandleCatchBall> goal_handle)
 {
+
+}
+/*
+{
     acquire_PID_variable();
     int count = 0;
     std::unique_lock<std::mutex> lock(variable_mutex_);
@@ -450,7 +463,7 @@ void action_catch_ball::ActionCatchBall::test_execute(const std::shared_ptr<Goal
         RCLCPP_INFO(this->get_logger(), "Goal succeeded");
     }
 }
-
+*/
 void action_catch_ball::ActionCatchBall::pid_test_execute(const std::shared_ptr<GoalHandleCatchBall> goal_handle)
 {
     acquire_goal();
@@ -526,10 +539,13 @@ void action_catch_ball::ActionCatchBall::ballinfo_callback(const rc2024_interfac
 {
     //RCLCPP_INFO(this->get_logger(), "Received ball info, x: %f, y: %f, z: %f", msg->balls_info.x, msg->balls_info.y, msg->balls_info.z);
     std::unique_lock<std::mutex> lock(variable_mutex_);
-    ball_info.x = msg->balls_info.y;
-    ball_info.y = msg->balls_info.x;
-    ball_info.z = msg->balls_info.z;
+    ball_info.clear();
+    purple_info.clear();
+    ball_info.assign(msg->balls_info.begin(), msg->balls_info.end());
+    purple_info.assign(msg->purple_info.begin(), msg->purple_info.end());
     is_found = msg->is_found;
+    if(is_found)
+        tracking_ball = msg->balls_info[0];
     lock.unlock();
 }
 
@@ -755,6 +771,67 @@ int action_catch_ball::ActionCatchBall::acquire_goal()
     return 0;
 }
 
+bool action_catch_ball::ActionCatchBall::up_decision_making()
+{
+    bool is_found_ = false;
+    std::vector<geometry_msgs::msg::Point32> ball_info_;
+    std::vector<geometry_msgs::msg::Point32> purple_info_;
+    std::unique_lock<std::mutex> lock(variable_mutex_);
+    ball_info_.assign(ball_info.begin(), ball_info.end());
+    purple_info_.assign(purple_info.begin(), purple_info.end());
+    is_found_ = is_found;
+    lock.unlock();
+
+    if(is_found_)
+    {
+        for(int i = 0; i< ball_info_.size(); i++)
+        {
+            current_measurement = cv::Vec2f(ball_info_[i].x, ball_info_[i].y);
+            current_radius = ball_info_[i].z;
+            if((current_measurement[0]-last_measurement[0])*(current_measurement[0]-last_measurement[0]) + (current_measurement[1]-last_measurement[1])*(current_measurement[1]-last_measurement[1]) < 225)
+            {
+                Kalman->correct(cv::Mat(current_measurement));
+                current_prediction = Kalman->predict();
+                tracking_ball.x = current_prediction[0];
+                tracking_ball.y = current_prediction[1];
+                tracking_ball.z = current_radius;
+                //cv::circle(color_image,cv::Point(current_prediction[0],current_prediction[1]),ball_info_[i][2],cv::Scalar(255,0,0),2);
+                break;
+            }
+            if(i == ball_info_.size()-1)
+            {
+                std::cout << "No target found!" << std::endl;
+                current_measurement = cv::Vec2f(ball_info_[0].x, ball_info_[0].y);
+                current_radius = ball_info_[0].z;
+                tracking_ball.x = current_measurement[0];
+                tracking_ball.y = current_measurement[1];
+                tracking_ball.z = current_radius;
+                //cv::circle(color_image,cv::Point(last_measurement[0],last_measurement[1]),last_radius,cv::Scalar(255,0,0),2);
+            }
+        }
+        last_prediction = current_prediction;
+        last_measurement = current_measurement;
+        last_radius = current_radius;
+    }
+    else
+    {
+        RCLCPP_INFO(this->get_logger(), "Ball not found.......");
+    }
+    return true;
+}
+
+bool action_catch_ball::ActionCatchBall::jaw_decision_making()
+{
+    bool is_found_ = false;
+    std::vector<geometry_msgs::msg::Point32> ball_info_;
+    std::vector<geometry_msgs::msg::Point32> purple_info_;
+    std::unique_lock<std::mutex> lock(variable_mutex_);
+    ball_info_.assign(ball_info.begin(), ball_info.end());
+    purple_info_.assign(purple_info.begin(), purple_info.end());
+    is_found_ = is_found;
+    lock.unlock();
+}
+
 int main(int argc, char * argv[])
 {
     setvbuf(stdout, NULL, _IONBF, BUFSIZ);
@@ -766,3 +843,169 @@ int main(int argc, char * argv[])
     rclcpp::shutdown();
     return 0;
 }
+
+/*
+{
+    int count = 0;
+    acquire_PID_variable();
+    std::unique_lock<std::mutex> lock(variable_mutex_);
+    ball_info.clear();
+    purple_info.clear();
+    lock.unlock();
+
+    std::shared_ptr< sensor_msgs::msg::JointState> msg_to_pub = std::make_shared<sensor_msgs::msg::JointState>(); 
+    
+    rclcpp::Rate loop_rate(20);
+    rclcpp::Rate action_rate(2);
+    const auto goal = goal_handle->get_goal();
+    auto result = std::make_shared<CatchBall::Result>();
+
+    if(!change_state_to_active())
+    {
+        RCLCPP_INFO(this->get_logger(), "different color index");
+        result->time = this->now().seconds() + this->now().nanoseconds() * 1e-9;
+        result->state = 1;
+        goal_handle->abort(result);
+        return;
+    }
+    action_rate.sleep();
+    RCLCPP_INFO(this->get_logger(), "Executing goal, id: %s", std::string(reinterpret_cast<const char *>(goal_handle->get_goal_id().data())).c_str());
+    auto feedback = std::make_shared<CatchBall::Feedback>();
+    auto & feedback_msg = feedback->progress;
+
+    geometry_msgs::msg::Pose2D Data_To_Pub;
+    int flag = 0;
+    int flag_for_w = 0;
+
+    std_msgs::msg::UInt32 up_cmd;
+    up_cmd.data = static_cast<int>(UpCmd::ChaseBall);
+    RCLCPP_INFO(this->get_logger(), "UpCmd: %d", up_cmd.data);
+    up_pub_->publish(up_cmd);
+    action_rate.sleep();
+
+    //开始执行
+    while (rclcpp::ok()) {
+        if(goal_handle->is_canceling())
+        {
+            Data_To_Pub.x = 0;
+            Data_To_Pub.y = 0;
+            Data_To_Pub.theta = 0;
+            chassis_pub_->publish(Data_To_Pub);
+            test.data = 3500;
+            up_pub_->publish(test);
+            result->time = this->now().seconds() + this->now().nanoseconds() * 1e-9;
+            result->state = static_cast<int>(CatchBallState::CANCEL);
+            goal_handle->canceled(result);
+            RCLCPP_INFO(this->get_logger(), "Goal canceled");
+            return;
+        }
+        lock.lock();
+        std::vector<geometry_msgs::msg::Point32> ballinfo__ =ball_info;        
+        std::vector<geometry_msgs::msg::Point32> purpleinfo__ =purple_info;
+        bool is_found_ = is_found;
+        lock.unlock();
+
+        if(!is_found_)
+        {
+            count++;
+            
+            if(count > 20*3)
+            {
+                if(!change_state(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE))
+                {
+                    RCLCPP_ERROR(this->get_logger(), "Failed to deactive node %s", lifecycle_node);
+                }
+                RCLCPP_INFO(this->get_logger(), "Ball not found for about 10s");
+                result->time = this->now().seconds() + this->now().nanoseconds() * 1e-9;
+                result->state = static_cast<int>(CatchBallState::TIMEOUT);
+                goal_handle->abort(result);
+                return;
+            }
+            Data_To_Pub.x = 0;
+            Data_To_Pub.y = 0;
+            Data_To_Pub.theta = 0.0;
+            chassis_pub_->publish(Data_To_Pub);
+            loop_rate.sleep();
+            continue;
+        }else if(is_found_ && count > 0){
+            count = 0;
+        }
+
+        if( flag_for_w == 0)
+        {
+            Data_To_Pub.x = 0;
+            Data_To_Pub.y = 0;
+            Data_To_Pub.theta = -PIDController_w.PosePID_Calc(-atan2(y_catch - ballinfo__.y, x_catch - ballinfo__.x));
+            RCLCPP_INFO(this->get_logger(), "x: %f, y: %f, theta: %f", Data_To_Pub.x, Data_To_Pub.y, Data_To_Pub.theta);
+            if(int(fabs(y_catch - ballinfo__.y)) < 25)
+            {
+                flag_for_w = 1;
+            }
+        } 
+        else if(flag_for_w == 1){
+            if(flag == 0)
+            {
+                if(ballinfo__.y < 468 && ballinfo__.y > 161 && ballinfo__.x > 333)
+                {
+                    flag = 1;
+                }
+                Data_To_Pub.x = -PIDController_x.PID_Calc(x_next - ballinfo__.x);
+                Data_To_Pub.y = -PIDController_y.PID_Calc(y_catch - ballinfo__.y);
+                Data_To_Pub.theta = 0;
+            }else {
+                    test.data = 3350;
+                    up_pub_->publish(test);
+                    
+                    Data_To_Pub.x = -PIDController_x_near.PID_Calc(x_catch - ballinfo__.x);
+                    Data_To_Pub.y = -PIDController_y_near.PID_Calc(y_catch - ballinfo__.y);
+                    Data_To_Pub.theta = 0;
+            }
+        }
+
+        if(x_catch < ballinfo__.x && std::fabs(ballinfo__.y - y_catch)< 25)
+        {
+            //RCLCPP_INFO(this->get_logger(), "Goal Succeed!!");
+            //RCLCPP_INFO(this->get_logger(), "%f,%f,%f",ballinfo__.x,ballinfo__.y,ballinfo__.z);
+            Data_To_Pub.x = 0;
+            Data_To_Pub.y = 0;
+            Data_To_Pub.theta = 0;
+            chassis_pub_->publish(Data_To_Pub);
+            break;
+        }
+        
+        RCLCPP_INFO(this->get_logger(), "x: %f, y: %f, theta: %f", Data_To_Pub.x, Data_To_Pub.y, Data_To_Pub.theta);
+
+        chassis_pub_->publish(Data_To_Pub);
+        feedback_msg = 0.5;
+        goal_handle->publish_feedback(feedback);
+        loop_rate.sleep();
+    }
+
+    if(rclcpp::ok())
+    {
+        if(!change_state(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE))
+        {
+            RCLCPP_ERROR(this->get_logger(), "Failed to deactive node %s", lifecycle_node);
+        }
+        action_rate.sleep();
+        up_cmd.data = static_cast<int>(UpCmd::CatchBall);
+        test.data = 3500;
+        up_pub_->publish(test);
+        RCLCPP_INFO(this->get_logger(), "UpCmd: %d", up_cmd.data);
+        up_pub_->publish(up_cmd);
+
+        action_rate.sleep();
+        action_rate.sleep();
+        action_rate.sleep();
+        action_rate.sleep();
+        action_rate.sleep();
+        action_rate.sleep();
+        
+        result->time = this->now().seconds();
+        result->state = static_cast<int>(CatchBallState::SUCCEED);
+
+        goal_handle->succeed(result);
+        RCLCPP_INFO(this->get_logger(), "Goal succeeded");
+    }
+}
+*/

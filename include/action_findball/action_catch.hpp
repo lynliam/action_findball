@@ -10,6 +10,7 @@
 #include "std_msgs/msg/u_int32.hpp"
 #include "std_msgs/msg/float32_multi_array.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
+#include "nav_msgs/msg/odometry.hpp"
 
 #include "lifecycle_msgs/msg/state.hpp"
 #include "lifecycle_msgs/msg/transition.hpp"
@@ -17,15 +18,19 @@
 #include "lifecycle_msgs/srv/get_state.hpp"
 #include "lifecycle_msgs/msg/transition_event.hpp"
 
+#include <memory>
 #include <mutex>
+#include <nav_msgs/msg/detail/odometry__struct.hpp>
+#include <sensor_msgs/msg/detail/joint_state__struct.hpp>
 #include <std_msgs/msg/detail/float32_multi_array__struct.hpp>
 #include <vector>
 #include "chassis_related.hpp"
 #include <opencv2/opencv.hpp>
+#include "pid_controller.hpp"
 
-// ros2 action send_goal /catch_ball rc2024_interfaces/action/CatchBall "{color: 1}"
+// ros2 action send_goal /catchball rc2024_interfaces/action/CatchBall "{color: 1}"
 
-namespace action_catch_ball {
+namespace action_findball {
 
     using namespace std::chrono_literals;
 
@@ -53,27 +58,6 @@ namespace action_catch_ball {
         private:
             geometry_msgs::msg::Pose2D Pa_last;
             float last_time;
-    };
-    class PIDController
-    {
-        public:
-            PIDController(float kp, float ki, float kd);
-            float PID_Calc(float cur_error_);
-            float PosePID_Calc(float cur_error_);
-            void PID_MaxMin(float max, float min);
-            void PID_setParam(float kp, float ki, float kd);
-            float integralMax;  // 积分上限
-            float integralMin;  // 积分下限 用于积分饱和
-        private:
-            float KP;        // PID参数P
-            float KI;        // PID参数I
-            float KD;        // PID参数D
-            float cur_error; // 当前误差
-            float error[2];  // 前两次误差
-            float integral;  // 积分
-            float output;    // 输出值
-            float outputMax; // 最大输出值的绝对值
-            float outputMin; // 最小输出值的绝对值用于防抖
     };
 
     class ActionCatchBall : public rclcpp::Node
@@ -107,6 +91,9 @@ namespace action_catch_ball {
             void execute(const std::shared_ptr<GoalHandleCatchBall> goal_handle);
             void test_execute(const std::shared_ptr<GoalHandleCatchBall> goal_handle);
             void pid_test_execute(const std::shared_ptr<GoalHandleCatchBall> goal_handle);
+            bool arm_executor(const std::shared_ptr<sensor_msgs::msg::JointState> JointControl_to_pub,
+                                const sensor_msgs::msg::JointState &JointState_,
+                                double joint1, double joint2, double joint3, double joint4);
 
             // BallInfo subscriber
             rclcpp::Subscription<rc2024_interfaces::msg::BallInfo>::SharedPtr ballinfo_sub_;
@@ -114,23 +101,31 @@ namespace action_catch_ball {
 
             // 底盘
             rclcpp::Publisher<geometry_msgs::msg::Pose2D>::SharedPtr chassis_pub_;
-            rclcpp::Subscription<geometry_msgs::msg::Pose2D>::SharedPtr chassis_sub_;
-            rclcpp::Publisher<std_msgs::msg::UInt32>::SharedPtr up_pub_;
+            rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr chassis_sub_;
+            rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr up_pub_;
+            rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr up_sub_;
             rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr imu_sub_;
-            void get_pose_speed_callback(const geometry_msgs::msg::Pose2D::SharedPtr msg);
+            
+            void get_pose_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
             void get_imu_callback(const std_msgs::msg::Float32MultiArray::SharedPtr msg);
+            void get_jointstate_callback(const sensor_msgs::msg::JointState::SharedPtr msg);
             // 底盘 variable
             geometry_msgs::msg::Pose2D ChassisPa;
             geometry_msgs::msg::Pose2D ChassisPv;
             std_msgs::msg::Float32MultiArray imu_data;
 
+            // 上肢 variable
+            sensor_msgs::msg::JointState up_joint_state;
+
             // variable_mutex
             std::mutex variable_mutex_;
             std::mutex variable_mutex__;
+            std::mutex variable_mutex__1;
             bool findball_node_init();
 
             // 速度计算
             VelCal vel_cal;
+
             std::vector<geometry_msgs::msg::Point32> ball_info;
             std::vector<geometry_msgs::msg::Point32> purple_info;
             bool is_found;
@@ -150,11 +145,13 @@ namespace action_catch_ball {
             int acquire_goal();
             float test_goal;
 
-            bool up_decision_making();
+            bool up_decision_making(
+                std::vector<geometry_msgs::msg::Point32> &ball_info_, 
+                std::vector<geometry_msgs::msg::Point32> &purple_info_, bool is_found_);
             bool jaw_decision_making();
 
             //kalman
-                    // Kalman variables
+            // Kalman variables
             cv::Vec2f last_measurement;
             cv::Vec2f current_measurement ;
             cv::Vec4f last_prediction ;

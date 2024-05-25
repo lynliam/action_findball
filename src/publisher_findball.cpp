@@ -1,6 +1,7 @@
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include <rc2024_interfaces/msg/detail/camera_switch__struct.hpp>
 #include <vector>
 #include <thread>
 #include <functional>
@@ -12,6 +13,7 @@
 
 #include "FindBall.hpp"
 #include "rc2024_interfaces/msg/ball_info.hpp"
+#include "rc2024_interfaces/msg/camera_switch.hpp"
 #include "std_msgs/msg/u_int32.hpp"
 
 // rclcpp生命周期节点
@@ -34,7 +36,7 @@ namespace PublisherFindballCPP {
                 findball_server_handler_up = std::make_shared<CameraUPServer>();
                 findball_server_handler_jaw = std::make_shared<CameraJawServer>();
                 findball_server_handler = findball_server_handler_up;
-                //this->create_subscription<std_msgs::msg::UInt32>("up_cmd", 2, std::bind(&PublisherFindball::up_cmd_callback, this, std::placeholders::_1));
+                this->create_subscription<rc2024_interfaces::msg::CameraSwitch>("camera_switch", 2, std::bind(&PublisherFindball::up_cmd_callback, this, std::placeholders::_1));
             }
             ~PublisherFindball()
             {
@@ -43,7 +45,7 @@ namespace PublisherFindballCPP {
 
             void executor()
             {
-                rclcpp::Rate rate(50);
+                rclcpp::Rate rate(1000);
                 RCLCPP_INFO(this->get_logger(), "PublisherFindball thread was created");
                 std::unique_lock<std::mutex> lock_flag(mutex_flag, std::defer_lock);
                 
@@ -66,7 +68,7 @@ namespace PublisherFindballCPP {
                         findball_server_handler = findball_server_handler_up;
                     else if(camera_flag_ == 1)
                         findball_server_handler = findball_server_handler_jaw;
-                    
+                    type = 2;
                     if(findball_server_handler->find_ball(type, ball_result, purple_result))
                     {
                         ball_info->balls_info.resize(ball_result.size());
@@ -90,33 +92,29 @@ namespace PublisherFindballCPP {
                     else {
                         RCLCPP_INFO(this->get_logger(), "Ball not found");
 
-                        for(auto &purple : purple_result)
-                        {
-                            ball_info->purple_info[0].x = purple[0];
-                            ball_info->purple_info[0].y = purple[1];
-                            ball_info->purple_info[0].z = purple[2];
-                        }
-                        ball_info->type = 10;
-                        ball_info->is_found = false;
-                        publisher_->publish(*ball_info);
+                        // for(auto &purple : purple_result)
+                        // {
+                        //     ball_info->purple_info[0].x = purple[0];
+                        //     ball_info->purple_info[0].y = purple[1];
+                        //     ball_info->purple_info[0].z = purple[2];
+                        // }
+                        // ball_info->type = 10;
+                        // ball_info->is_found = false;
+                        // publisher_->publish(*ball_info);
                     }
                     //findball_server_handler->imgshow_DEBUG();
                     rate.sleep();
                 }
             }
 
-            void up_cmd_callback(const std_msgs::msg::UInt32::SharedPtr msg)
+            void up_cmd_callback(const rc2024_interfaces::msg::CameraSwitch msg)
             {
-
-                if(msg->data > 1000)
-                {
-                    std::unique_lock<std::mutex> lock_flag(mutex_flag);
-                    if(msg->data == 3500)
-                        camera_flag = 0;
-                    else if(msg->data == 3350)
-                        camera_flag =1;
-                    lock_flag.unlock();
-                }
+                std::unique_lock<std::mutex> lock_flag(mutex_flag);
+                if(msg.index == 0)
+                    camera_flag = 0;
+                else if(msg.index == 1)
+                    camera_flag =1;
+                lock_flag.unlock();
             }
 
             /* lifecycle config */
@@ -233,7 +231,6 @@ namespace PublisherFindballCPP {
 
 int main(int argc, char * argv[])
 {
-    setvbuf(stdout, NULL, _IONBF, BUFSIZ);
     rclcpp::init(argc, argv);
     rclcpp::executors::MultiThreadedExecutor exe;
     

@@ -10,12 +10,14 @@ std::regex pattern("\\d+$");
 int camera_up_index = 0;
 int camera_jaw_index = 0;
 
-
 int camera_index_read()
 {
-    std::filesystem::path currentPath = std::filesystem::current_path();    
-    //const std::string package_name = "action_findball";
-    std::filesystem::path dirPath = currentPath / "xml" / "camera.xml";
+    // std::filesystem::path currentPath = std::filesystem::current_path();    
+    // //const std::string package_name = "action_findball";
+    // std::filesystem::path dirPath = currentPath / "xml" / "camera.xml";
+    std::filesystem::path currentPath = std::filesystem::current_path();
+    const std::string package_name = "action_findball";
+    std::filesystem::path dirPath = currentPath / "install" / package_name / "share" / package_name / "xml" / "camera.xml";// 假设已经构造好基础路径
 
     tinyxml2::XMLDocument doc;
     if (doc.LoadFile(dirPath.c_str()) != tinyxml2::XML_SUCCESS)
@@ -65,9 +67,12 @@ int camera_index_read()
 
 int camera_distribute()
 {
-    std::filesystem::path currentPath = std::filesystem::current_path();    
-    //const std::string package_name = "action_findball";
-    std::filesystem::path dirPath = currentPath / "xml" / "camera.xml";
+    // std::filesystem::path currentPath = std::filesystem::current_path();    
+    
+    // std::filesystem::path dirPath = currentPath / "xml" / "camera.xml";
+    std::filesystem::path currentPath = std::filesystem::current_path();
+    const std::string package_name = "action_findball";
+    std::filesystem::path dirPath = currentPath / "install" / package_name / "share" / package_name / "xml" / "camera.xml";// 假设已经构造好基础路径
     tinyxml2::XMLDocument doc;
     if (doc.LoadFile(dirPath.c_str()) != tinyxml2::XML_SUCCESS)
     {
@@ -121,7 +126,7 @@ int camera_distribute()
 
         // 分别修改up和down中的index值
         // 修改up中的index
-        if(prefix == "2K")
+        if(prefix == "2K" || prefix == "1080P")
         {
             tinyxml2::XMLElement* upElement = cameraElement->FirstChildElement("up");
             if (upElement) {

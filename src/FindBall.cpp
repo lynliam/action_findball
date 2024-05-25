@@ -26,8 +26,6 @@ cv::Scalar upper_red = cv::Scalar(190, 251, 255);
 cv::Scalar lower_red_1 = cv::Scalar(0, 100, 0);
 cv::Scalar upper_red_1 = cv::Scalar(24, 255, 255);
 
-
-
 cv::Scalar lower_purple_jaw = cv::Scalar(142, 67, 41);
 cv::Scalar upper_purple_jaw = cv::Scalar(175, 162, 255);
 cv::Scalar lower_blue_jaw = cv::Scalar(111, 114, 0);

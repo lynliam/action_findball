@@ -8,9 +8,7 @@ endif()
 
 # Default to C++17
 
-set(CMAKE_CXX_STANDARD 17)
-
-
+set(CMAKE_CXX_STANDARD 20)
 
 # colcon build --packages-select action_findball --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON --parallel-workers 12
 
@@ -26,6 +24,11 @@ find_package(rclcpp_lifecycle REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(nav2_util REQUIRED)
+find_package(nav2_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 
 set(Include_DIR "src/ximgproc/include/opencv2" "src/ximgproc/include" "src/ximgproc/src" "include/action_findball" "include" "src/tinyxml2")
 set(SRC_DIR "src/ximgproc/src/*.cpp")
@@ -33,19 +36,29 @@ include_directories(${OpenCV_INCLUDE_DIRS} ${Include_DIR})
 file(GLOB_RECURSE SRC_FILES ${SRC_DIR})
 link_directories(${OpenCV_LIB_DIR})
 
+add_library(spin_to STATIC "src/spin_to_func.cpp")
+ament_target_dependencies(spin_to
+    "rclcpp"
+    "rc2024_interfaces"
+    "geometry_msgs"
+    "sensor_msgs"
+    "nav_msgs"
+    "nav2_util"
+    "tf2_ros")
+
+
 add_executable(publisher_findball src/publisher_findball.cpp ${SRC_FILES} "src/FindBall.cpp" "src/camera_distribute.cpp" "src/tinyxml2/tinyxml2.cpp")
 target_link_libraries(publisher_findball ${OpenCV_LIBS})
 target_include_directories(publisher_findball PRIVATE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
   $<INSTALL_INTERFACE:include>)
-
 ament_target_dependencies(publisher_findball
     "rclcpp"
     "rclcpp_lifecycle"
     "lifecycle_msgs"
     "rc2024_interfaces")
 
-add_executable(catchball_server src/action_catch.cpp "src/tinyxml2/tinyxml2.cpp")
+add_executable(catchball_server src/action_catch.cpp "src/tinyxml2/tinyxml2.cpp" "src/pid_controller.cpp")
 target_link_libraries(catchball_server ${OpenCV_LIBS})
 ament_target_dependencies(catchball_server
     "rclcpp"
@@ -54,11 +67,25 @@ ament_target_dependencies(catchball_server
     "rclcpp_lifecycle"
     "rc2024_interfaces"
     "geometry_msgs"
-    "sensor_msgs")
+    "sensor_msgs"
+    "nav_msgs")
+
+add_executable(approaching_ball "src/approaching_ball.cpp" "src/tinyxml2/tinyxml2.cpp" "src/pid_controller.cpp" "src/lifecycle_manager_client.cpp")
+target_link_libraries(approaching_ball ${OpenCV_LIBS} spin_to)
+ament_target_dependencies(approaching_ball
+    "rclcpp"
+    "rclcpp_action"
+    "lifecycle_msgs"
+    "rclcpp_lifecycle"
+    "rc2024_interfaces"
+    "geometry_msgs"
+    "sensor_msgs"
+    "nav_msgs")
 
 install(TARGETS
   publisher_findball
   catchball_server
+  approaching_ball
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY

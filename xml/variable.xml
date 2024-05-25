@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <pid>
+    <PTZ>
+        <kp>0.003</kp>
+        <ki>0.00002</ki>
+        <kd>0.01</kd>
+    </PTZ>
     <x>
         <kp>0.0003</kp>
         <ki>0.00001</ki>

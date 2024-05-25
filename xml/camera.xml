@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <camera>
     <up>
-        <name>2K USB Camera (usb-0000:00:14.0-1.2)</name>
+        <name>1080P USB Cam (usb-0000:00:14.0-1)</name>
         <index1>/dev/video2</index1>
         <index2>/dev/video3</index2>
     </up>
     <jaw>
-        <name>USB camera (usb-0000:00:14.0-1.4)</name>
+        <name>USB camera (usb-0000:00:14.0-2.2)</name>
         <index1>/dev/video0</index1>
         <index2>/dev/video1</index2>
     </jaw>

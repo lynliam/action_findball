@@ -13,6 +13,14 @@ def generate_launch_description():
         output='screen', #用于将话题信息打印到屏幕
     )
     
+    approaching_ball = Node(
+        package='action_findball',
+        executable='approaching_ball',
+        name='approaching_ball',
+        output='screen', #用于将话题信息打印到屏幕
+    )
+    
+    
     findball = Node(
         package='action_findball',
         executable='publisher_findball',
@@ -27,7 +35,8 @@ def generate_launch_description():
     #     condition=IfCondition()
     # )
 
-    ld.add_action(action_catchball)
+    #ld.add_action(action_catchball)
     ld.add_action(findball)
+    ld.add_action(approaching_ball)
 
     return ld

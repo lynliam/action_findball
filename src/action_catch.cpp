@@ -1,7 +1,8 @@
 #include <memory>
 #include <mutex>
+#include <rclcpp/logger.hpp>
 #include <rclcpp/logging.hpp>
-#include <sensor_msgs/msg/detail/joint_state__struct.hpp>
+#include <rclcpp/rate.hpp>
 #include <std_msgs/msg/detail/float32_multi_array__struct.hpp>
 #include <std_msgs/msg/detail/u_int32__builder.hpp>
 
@@ -31,7 +32,7 @@ static constexpr char const * node_get_state_topic = "findball/get_state";
 static constexpr char const * node_change_state_topic = "findball/change_state";
 
 template<typename FutureT, typename WaitTimeT>
-    std::future_status action_catch_ball::wait_for_result( FutureT & future, WaitTimeT time_to_wait)
+    std::future_status action_findball::wait_for_result( FutureT & future, WaitTimeT time_to_wait)
 {
     auto end = std::chrono::steady_clock::now() + time_to_wait;
     std::chrono::milliseconds wait_period(100);
@@ -45,7 +46,7 @@ template<typename FutureT, typename WaitTimeT>
     return status;
 }
 
-action_catch_ball::ActionCatchBall::ActionCatchBall(const std::string & node_name,  const rclcpp::NodeOptions & options)
+action_findball::ActionCatchBall::ActionCatchBall(const std::string & node_name,  const rclcpp::NodeOptions & options)
     :Node(node_name, options), 
     PIDController_x(0.0004,0.00001,0.001),             
     PIDController_y(0.0006,0.00001,0.0001),
@@ -84,9 +85,10 @@ action_catch_ball::ActionCatchBall::ActionCatchBall(const std::string & node_nam
                             "/findball/transition_event", 10, std::bind(&ActionCatchBall::notification_callback, this, std::placeholders::_1));
 
     chassis_pub_ = this->create_publisher<geometry_msgs::msg::Pose2D>("car/cmd_vel", 2);
-    chassis_sub_ = this->create_subscription<geometry_msgs::msg::Pose2D>("car/ops", 2, std::bind(&ActionCatchBall::get_pose_speed_callback,this,std::placeholders::_1));
+    chassis_sub_ = this->create_subscription<nav_msgs::msg::Odometry>("filtered_odom", 2, std::bind(&::action_findball::ActionCatchBall::get_pose_callback,this,std::placeholders::_1));
     imu_sub_ = this->create_subscription<std_msgs::msg::Float32MultiArray>("car/imu", 2, std::bind(&ActionCatchBall::get_imu_callback,this,std::placeholders::_1));
-    up_pub_ = this->create_publisher<std_msgs::msg::UInt32>("up_cmd", 2);
+    up_pub_ = this->create_publisher<sensor_msgs::msg::JointState>("/car/up_cmd", 2);
+    up_sub_ = this->create_subscription<sensor_msgs::msg::JointState>("/car/up_fdbk", 3, std::bind(&ActionCatchBall::get_jointstate_callback,this,std::placeholders::_1));
 
     // 等待findball节点上线，并初始化findball节点
     //findball_node_state_ = findball_node_init();
@@ -105,7 +107,7 @@ action_catch_ball::ActionCatchBall::ActionCatchBall(const std::string & node_nam
     // up_pub_->publish(test);
 }
 
-unsigned int action_catch_ball::ActionCatchBall::get_state(std::chrono::seconds timeout)
+unsigned int action_findball::ActionCatchBall::get_state(std::chrono::seconds timeout)
 {
     auto request = std::make_shared<lifecycle_msgs::srv::GetState::Request>();
     if(!client_get_state_->wait_for_service(timeout))
@@ -137,7 +139,7 @@ unsigned int action_catch_ball::ActionCatchBall::get_state(std::chrono::seconds 
     }
 }
 
-bool  action_catch_ball::ActionCatchBall::change_state(std::uint8_t transition, std::chrono::seconds timeout)
+bool  action_findball::ActionCatchBall::change_state(std::uint8_t transition, std::chrono::seconds timeout)
 {
     auto request = std::make_shared<lifecycle_msgs::srv::ChangeState::Request>();
     request->transition.id = transition;
@@ -167,7 +169,7 @@ bool  action_catch_ball::ActionCatchBall::change_state(std::uint8_t transition, 
     }
 }
 
-rclcpp_action::GoalResponse action_catch_ball::ActionCatchBall::handle_goal(
+rclcpp_action::GoalResponse action_findball::ActionCatchBall::handle_goal(
 const rclcpp_action::GoalUUID & uuid,
 std::shared_ptr<const CatchBall::Goal> goal)
 {
@@ -181,41 +183,50 @@ std::shared_ptr<const CatchBall::Goal> goal)
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
 
-rclcpp_action::CancelResponse action_catch_ball::ActionCatchBall::handle_cancel(
+rclcpp_action::CancelResponse action_findball::ActionCatchBall::handle_cancel(
     const std::shared_ptr<GoalHandleCatchBall> goal_handle)
 {
     RCLCPP_INFO(this->get_logger(), "Received request to cancel goal");
     (void)goal_handle;
 
-    if(!change_state(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE))
-    {
-        RCLCPP_ERROR(this->get_logger(), "Failed to deactive node %s", lifecycle_node);
-    }
+    // if(!change_state(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE))
+    // {
+    //     RCLCPP_ERROR(this->get_logger(), "Failed to deactive node %s", lifecycle_node);
+    // }
     return rclcpp_action::CancelResponse::ACCEPT;
 }
 
-void action_catch_ball::ActionCatchBall::handle_accepted(const std::shared_ptr<GoalHandleCatchBall> goal_handle)
+void action_findball::ActionCatchBall::handle_accepted(const std::shared_ptr<GoalHandleCatchBall> goal_handle)
 {
     using namespace std::placeholders;
-    std::thread{std::bind(&ActionCatchBall::execute, this, _1), goal_handle}.detach();
+    std::thread{std::bind(&ActionCatchBall::test_execute, this, _1), goal_handle}.detach();
 }
 
-void action_catch_ball::ActionCatchBall::execute(const std::shared_ptr<GoalHandleCatchBall> goal_handle)
+void action_findball::ActionCatchBall::execute(const std::shared_ptr<GoalHandleCatchBall> goal_handle)
+{}
+/*
 {
+    //动作延迟初始化
+    rclcpp::Rate loop_rate(20);
+    rclcpp::Rate action_rate(2);
+
+    //控制器参数初始化
     int count = 0;
     acquire_PID_variable();
+
+    //球信息初始化
     std::unique_lock<std::mutex> lock(variable_mutex_);
     ball_info.clear();
     purple_info.clear();
     lock.unlock();
 
-    std::shared_ptr< sensor_msgs::msg::JointState> msg_to_pub = std::make_shared<sensor_msgs::msg::JointState>(); 
-
-    rclcpp::Rate loop_rate(20);
-    rclcpp::Rate action_rate(2);
+    //获取goal && result && feedback
     const auto goal = goal_handle->get_goal();
     auto result = std::make_shared<CatchBall::Result>();
+    auto feedback = std::make_shared<CatchBall::Feedback>();
+    auto & feedback_msg = feedback->progress;
 
+    //判断颜色是否正确
     if(!change_state_to_active())
     {
         RCLCPP_INFO(this->get_logger(), "different color index");
@@ -224,20 +235,37 @@ void action_catch_ball::ActionCatchBall::execute(const std::shared_ptr<GoalHandl
         goal_handle->abort(result);
         return;
     }
-    action_rate.sleep();
-    RCLCPP_INFO(this->get_logger(), "Executing goal, id: %s", std::string(reinterpret_cast<const char *>(goal_handle->get_goal_id().data())).c_str());
-    auto feedback = std::make_shared<CatchBall::Feedback>();
-    auto & feedback_msg = feedback->progress;
 
+    action_rate.sleep();
+
+    RCLCPP_INFO(this->get_logger(), "Executing goal, id: %s", std::string(reinterpret_cast<const char *>(goal_handle->get_goal_id().data())).c_str());
+
+    //初始化速度控制msg
     geometry_msgs::msg::Pose2D Data_To_Pub;
     int flag = 0;
     int flag_for_w = 0;
 
-    std_msgs::msg::UInt32 up_cmd;
-    up_cmd.data = static_cast<int>(UpCmd::ChaseBall);
-    RCLCPP_INFO(this->get_logger(), "UpCmd: %d", up_cmd.data);
-    up_pub_->publish(up_cmd);
+    //初始化机械臂控制msg
+    std::shared_ptr< sensor_msgs::msg::JointState> JointControl_to_pub = std::make_shared<sensor_msgs::msg::JointState>(); 
+    JointControl_to_pub->header.frame_id="joint_control";
+    JointControl_to_pub->name.push_back("Joint1");
+    JointControl_to_pub->name.push_back("Joint2");
+    JointControl_to_pub->name.push_back("Joint3");
+    JointControl_to_pub->name.push_back("Joint4");
+
     action_rate.sleep();
+
+    // 关节初始化位置代码
+    JointControl_to_pub->position.push_back(0.0);
+    JointControl_to_pub->position.push_back(-1.553);
+    JointControl_to_pub->position.push_back(-1.285);
+    JointControl_to_pub->position.push_back(0.405);
+    JointControl_to_pub->header.stamp = this->now();
+    up_pub_->publish(*JointControl_to_pub);
+
+    std::vector<geometry_msgs::msg::Point32> ball_info__;        
+    std::vector<geometry_msgs::msg::Point32> purple_info__;
+    bool is_found_ = false;
 
     //开始执行
     while (rclcpp::ok()) {
@@ -247,25 +275,37 @@ void action_catch_ball::ActionCatchBall::execute(const std::shared_ptr<GoalHandl
             Data_To_Pub.y = 0;
             Data_To_Pub.theta = 0;
             chassis_pub_->publish(Data_To_Pub);
-            test.data = 3500;
-            up_pub_->publish(test);
+
+            // 关节归位代码
+            // ...
+            JointControl_to_pub->position.push_back(0.0);
+            JointControl_to_pub->position.push_back(-1.553);
+            JointControl_to_pub->position.push_back(-1.285);
+            JointControl_to_pub->position.push_back(0.405);
+            JointControl_to_pub->header.stamp = this->now();
+            up_pub_->publish(*JointControl_to_pub);
+
             result->time = this->now().seconds() + this->now().nanoseconds() * 1e-9;
             result->state = static_cast<int>(CatchBallState::CANCEL);
             goal_handle->canceled(result);
             RCLCPP_INFO(this->get_logger(), "Goal canceled");
             return;
         }
+        ball_info__.clear();
+        purple_info__.clear();
+
         lock.lock();
-        std::vector<geometry_msgs::msg::Point32> ballinfo__ =ball_info;        
-        std::vector<geometry_msgs::msg::Point32> purpleinfo__ =purple_info;
-        bool is_found_ = is_found;
+        ball_info__.assign(ball_info.begin(), ball_info.end());
+        purple_info__.assign(purple_info.begin(), purple_info.end());
+        is_found_ = is_found;
         lock.unlock();
+
+        up_decision_making(ball_info__,purple_info__,is_found_);
 
         if(!is_found_)
         {
             count++;
-            
-            if(count > 20*3)
+            if(count > 20*5)
             {
                 if(!change_state(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE))
                 {
@@ -281,6 +321,7 @@ void action_catch_ball::ActionCatchBall::execute(const std::shared_ptr<GoalHandl
             Data_To_Pub.y = 0;
             Data_To_Pub.theta = 0.0;
             chassis_pub_->publish(Data_To_Pub);
+
             loop_rate.sleep();
             continue;
         }else if(is_found_ && count > 0){
@@ -364,83 +405,115 @@ void action_catch_ball::ActionCatchBall::execute(const std::shared_ptr<GoalHandl
         RCLCPP_INFO(this->get_logger(), "Goal succeeded");
     }
 }
+*/
 
-void action_catch_ball::ActionCatchBall::test_execute(const std::shared_ptr<GoalHandleCatchBall> goal_handle)
+void action_findball::ActionCatchBall::test_execute(const std::shared_ptr<GoalHandleCatchBall> goal_handle)
 {
-
-}
-/*
-{
-    acquire_PID_variable();
-    int count = 0;
-    std::unique_lock<std::mutex> lock(variable_mutex_);
-    ball_info.x = 0.0;
-    ball_info.y = 0.0;
-    ball_info.z = 0.0;
-    lock.unlock();
     rclcpp::Rate loop_rate(20);
-    rclcpp::Rate action_rate(2);
+    rclcpp::Rate action_rate(1);
+    
     const auto goal = goal_handle->get_goal();
     auto result = std::make_shared<CatchBall::Result>();
-    if(!change_state_to_active())
-    {
-        RCLCPP_INFO(this->get_logger(), "different color index");
-        result->time = this->now().seconds() + this->now().nanoseconds() * 1e-9;
-        goal_handle->abort(result);
-        return;
-    }
 
     RCLCPP_INFO(this->get_logger(), "Executing goal, id: %s", std::string(reinterpret_cast<const char *>(goal_handle->get_goal_id().data())).c_str());
     auto feedback = std::make_shared<CatchBall::Feedback>();
     auto & feedback_msg = feedback->progress;
 
-    geometry_msgs::msg::Pose2D Data_To_Pub;
-    int flag = 0;
+    //初始化机械臂控制msg
+    std::shared_ptr< sensor_msgs::msg::JointState> JointControl_to_pub = std::make_shared<sensor_msgs::msg::JointState>(); 
+    sensor_msgs::msg::JointState JointState_;
+    sensor_msgs::msg::JointState JointState_Last;
+    JointState_.position.resize(4);
+    JointState_.position[0] = 0.0;
+    JointState_.position[1] = 0.0;
+    JointState_.position[2] = 0.0;
+    JointState_.position[3] = 0.0;
+    JointState_Last.position.resize(4);
+    JointState_Last.position.assign(JointState_.position.begin(), JointState_.position.end());
 
-    std_msgs::msg::UInt32 up_cmd;
-    up_cmd.data = static_cast<int>(UpCmd::ChaseBall);
-    RCLCPP_INFO(this->get_logger(), "UpCmd: %d", up_cmd.data);
-    up_pub_->publish(up_cmd);
-    action_rate.sleep();
-    while (rclcpp::ok()) {
+    JointControl_to_pub->header.frame_id="joint_control";
+    JointControl_to_pub->name.push_back("Joint1");
+    JointControl_to_pub->name.push_back("Joint2");
+    JointControl_to_pub->name.push_back("Joint3");
+    JointControl_to_pub->name.push_back("Joint4");
+
+    // 获取初始位置
+    std::unique_lock<std::mutex> lock(variable_mutex__1);
+    JointState_.position.clear();
+    JointState_.position.resize(4);
+    JointState_.position.assign(up_joint_state.position.begin(), up_joint_state.position.end());
+    lock.unlock();
+    // 关节初始化位置代码
+    // JointControl_to_pub->position.push_back(0.0);
+    // JointControl_to_pub->position.push_back(-1.553);
+    // JointControl_to_pub->position.push_back(-1.285);
+    // JointControl_to_pub->position.push_back(0.405);
+    // JointControl_to_pub->header.stamp = this->now();
+    // up_pub_->publish(*JointControl_to_pub);
+    arm_executor(JointControl_to_pub, JointState_, 0.0, 0.009, 0.594, -0.400);
+    //action_rate.sleep();
+    int state_ = 0;
+
+    while (rclcpp::ok() && state_ <= 5) {
         if(goal_handle->is_canceling())
         {
-            Data_To_Pub.x = 0;
-            Data_To_Pub.y = 0;
-            Data_To_Pub.theta = 0;
-            chassis_pub_->publish(Data_To_Pub);
+            arm_executor(JointControl_to_pub, JointState_, 0.0, 0.009, 0.594, -0.400);
             result->time = this->now().seconds() + this->now().nanoseconds() * 1e-9;
             goal_handle->canceled(result);
             RCLCPP_INFO(this->get_logger(), "Goal canceled");
             return;
         }
-        lock.lock();
-        geometry_msgs::msg::Point32 ballinfo__ =ball_info;
-        bool is_found_ = is_found;
+        
+        std::unique_lock<std::mutex> lock(variable_mutex__1);
+        JointState_.position.clear();
+        JointState_.position.resize(4);
+        JointState_.position.assign(up_joint_state.position.begin(), up_joint_state.position.end());
         lock.unlock();
+        //RCLCPP_INFO(this->get_logger(), "JointState: %f, %f, %f, %f", JointState_.position[0], JointState_.position[1], JointState_.position[2], JointState_.position[3]);
+        RCLCPP_INFO(this->get_logger(),"state: %d", state_);
+        switch (state_)
+        {
+            case 0:
+                arm_executor(JointControl_to_pub, JointState_, 0.0, 0.009, 0.594, 0.223);
+                {
+                    state_ = 1;
+                    action_rate.sleep();
+                }
+                break;
+            case 1:
+                arm_executor(JointControl_to_pub, JointState_, 0.0, 0.009, 0.594, -0.223);
+                {
+                    state_ = 2;
+                    action_rate.sleep();
+                }
+                break;
+            case 2:
+                if(arm_executor(JointControl_to_pub, JointState_, 0.0, -2.9, 1.477, -0.223))
+                {
+                    state_ = 3;
+                    action_rate.sleep();
+                }
+                break;
+            case 3:
+                if(arm_executor(JointControl_to_pub, JointState_, 0.0, -2.9, 1.477, 0.223))
+                {
+                    state_ = 4;
+                    action_rate.sleep();
+                }
+                break;
+            case 4:
+                arm_executor(JointControl_to_pub, JointState_, 0.0, 0.009, 0.594, -0.400);
+                {
+                    state_ = 5;
+                    action_rate.sleep();
+                }
+                break;
+            case 5:
+                state_ = 6;
 
-        // if(!is_found)
-        // {
-        //     count++;
-        //     if(count > 20*10)
-        //     {
-        //         RCLCPP_INFO(this->get_logger(), "Ball not found for about 10s");
-        //         result->time = this->now().seconds() + this->now().nanoseconds() * 1e-9;
-        //         goal_handle->abort(result);
-        //         return;
-        //     }
-        //     loop_rate.sleep();
-        //     continue;
-        // }else if(is_found_ && count > 0){
-        //     count = 0;
-        // }
+        }
 
-        // Data_To_Pub.x = -PIDController_x.PID_Calc(x_next - ballinfo__.x);
-        Data_To_Pub.x = 0;
-        Data_To_Pub.y = 0;
-        Data_To_Pub.theta = -PIDController_w.PosePID_Calc(-atan2(y_catch - ballinfo__.y, x_catch - ballinfo__.x));
-        RCLCPP_INFO(this->get_logger(),"x: %f",  Data_To_Pub.x);
-        chassis_pub_->publish(Data_To_Pub);
+        JointState_Last.position.assign(JointState_.position.begin(), JointState_.position.end());
         feedback_msg = 0.5;
         goal_handle->publish_feedback(feedback);
         loop_rate.sleep();
@@ -448,25 +521,37 @@ void action_catch_ball::ActionCatchBall::test_execute(const std::shared_ptr<Goal
 
     if(rclcpp::ok())
     {
-        if(!change_state(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE))
-        {
-            RCLCPP_ERROR(this->get_logger(), "Failed to deactive node %s", lifecycle_node);
-        }
         action_rate.sleep();
-        up_cmd.data = static_cast<int>(UpCmd::CatchBall);
-        RCLCPP_INFO(this->get_logger(), "UpCmd: %d", up_cmd.data);
-        up_pub_->publish(up_cmd);
-
-
+        arm_executor(JointControl_to_pub, JointState_, 0.0, 0.009, 0.594, -0.400);
         result->time = this->now().seconds();
         goal_handle->succeed(result);
         RCLCPP_INFO(this->get_logger(), "Goal succeeded");
     }
 }
-*/
-void action_catch_ball::ActionCatchBall::pid_test_execute(const std::shared_ptr<GoalHandleCatchBall> goal_handle)
+
+void action_findball::ActionCatchBall::pid_test_execute(const std::shared_ptr<GoalHandleCatchBall> goal_handle)
 {
     acquire_goal();
+
+    //初始化机械臂控制msg
+    std::shared_ptr< sensor_msgs::msg::JointState> JointControl_to_pub = std::make_shared<sensor_msgs::msg::JointState>(); 
+    sensor_msgs::msg::JointState JointState_;
+    sensor_msgs::msg::JointState JointState_Last;
+    JointState_.position.resize(4);
+    JointState_.position[0] = 0.0;
+    JointState_.position[1] = 0.0;
+    JointState_.position[2] = 0.0;
+    JointState_.position[3] = 0.0;
+    JointState_Last.position.resize(4);
+    JointState_Last.position.assign(JointState_.position.begin(), JointState_.position.end());
+
+    JointControl_to_pub->header.frame_id="joint_control";
+    JointControl_to_pub->name.push_back("Joint1");
+    JointControl_to_pub->name.push_back("Joint2");
+    JointControl_to_pub->name.push_back("Joint3");
+    JointControl_to_pub->name.push_back("Joint4");
+    arm_executor(JointControl_to_pub, JointState_, 0.0, -1.553, -1.285, 0.405);
+
     rclcpp::Rate loop_rate(20);
     const auto goal = goal_handle->get_goal();
     auto result = std::make_shared<CatchBall::Result>();
@@ -508,7 +593,7 @@ void action_catch_ball::ActionCatchBall::pid_test_execute(const std::shared_ptr<
     }
 }
 
-bool action_catch_ball::ActionCatchBall::findball_node_init()
+bool action_findball::ActionCatchBall::findball_node_init()
 {
     rclcpp::Rate loop_rate(2);
     float time_now = this->now().seconds() + this->now().nanoseconds() * 1e-9;
@@ -535,7 +620,7 @@ bool action_catch_ball::ActionCatchBall::findball_node_init()
     return true;
 }
 
-void action_catch_ball::ActionCatchBall::ballinfo_callback(const rc2024_interfaces::msg::BallInfo::SharedPtr msg)
+void action_findball::ActionCatchBall::ballinfo_callback(const rc2024_interfaces::msg::BallInfo::SharedPtr msg)
 {
     //RCLCPP_INFO(this->get_logger(), "Received ball info, x: %f, y: %f, z: %f", msg->balls_info.x, msg->balls_info.y, msg->balls_info.z);
     std::unique_lock<std::mutex> lock(variable_mutex_);
@@ -549,7 +634,7 @@ void action_catch_ball::ActionCatchBall::ballinfo_callback(const rc2024_interfac
     lock.unlock();
 }
 
-bool action_catch_ball::ActionCatchBall::change_state_to_active()
+bool action_findball::ActionCatchBall::change_state_to_active()
 {
     rclcpp::WallRate time_between_state_changes(10);  // 0.1s
 
@@ -589,36 +674,36 @@ bool action_catch_ball::ActionCatchBall::change_state_to_active()
     return true;
 }
 
-void action_catch_ball::ActionCatchBall::notification_callback(lifecycle_msgs::msg::TransitionEvent::ConstSharedPtr msg)
+void action_findball::ActionCatchBall::notification_callback(lifecycle_msgs::msg::TransitionEvent::ConstSharedPtr msg)
 {
 RCLCPP_INFO(
     get_logger(), "notify callback: Transition from state %s to %s",
     msg->start_state.label.c_str(), msg->goal_state.label.c_str());
 }
 
-void action_catch_ball::ActionCatchBall::get_pose_speed_callback(const geometry_msgs::msg::Pose2D::SharedPtr msg)
+void action_findball::ActionCatchBall::get_pose_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
 {
     std::unique_lock<std::mutex> lock(variable_mutex_);
-    ChassisPa.x = msg->x;
-    ChassisPa.y = msg->y;
-    ChassisPa.theta = msg->theta;
+    ChassisPa.x = msg->pose.pose.position.x;
+    ChassisPa.y = msg->pose.pose.position.y;
+    ChassisPa.theta = msg->pose.pose.orientation.w;
     vel_cal.cal_vel(ChassisPa, this->now().seconds(), this->now().nanoseconds(), ChassisPv);
 }
 
-void action_catch_ball::ActionCatchBall::get_imu_callback(const std_msgs::msg::Float32MultiArray::SharedPtr msg)
+void action_findball::ActionCatchBall::get_imu_callback(const std_msgs::msg::Float32MultiArray::SharedPtr msg)
 {
     std::unique_lock<std::mutex> lock(variable_mutex__);
     imu_data.data = msg->data;
 }
 
-action_catch_ball::VelCal::VelCal():last_time(0.0)
+action_findball::VelCal::VelCal():last_time(0.0)
 {
     Pa_last.x = 0;
     Pa_last.y = 0;
     Pa_last.theta = 0;
 }
 
-void action_catch_ball::VelCal::cal_vel(geometry_msgs::msg::Pose2D &Pa, float time_s, float time_ns, geometry_msgs::msg::Pose2D &vel)
+void action_findball::VelCal::cal_vel(geometry_msgs::msg::Pose2D &Pa, float time_s, float time_ns, geometry_msgs::msg::Pose2D &vel)
 {
     float time_now = time_s + time_ns * 1e-9;
     float dt = time_now - last_time;
@@ -631,72 +716,8 @@ void action_catch_ball::VelCal::cal_vel(geometry_msgs::msg::Pose2D &Pa, float ti
     last_time = time_now;
 }
 
-    /*增量式PID算法*/
-float action_catch_ball::PIDController::PID_Calc(float cur_error_)
-{
-    cur_error = cur_error_;
-    output += KP * (cur_error - error[1]) + KI * cur_error + KD * (cur_error - 2 * error[1] + error[0]);
-    error[0] = error[1];
-    error[1] = cur_error;
 
-    /*设定输出上限*/
-    if (output > outputMax)
-        output = outputMax;
-    if (output < outputMin)
-        output = outputMin;
-    return output;
-}
-
-action_catch_ball::PIDController::PIDController(float kp, float ki, float kd)
-{
-    KP = kp;
-    KI = ki;
-    KD = kd;
-    cur_error = 0;
-    error[0] = 0;
-    error[1] = 0;
-    integral = 0;
-    integralMax = 0.3;
-    integralMin = -0.3;
-    output = 0;
-    outputMax = 0.4;
-    outputMin = -0.4;
-}
-void action_catch_ball::PIDController::PID_setParam(float kp, float ki, float kd)
-{
-    KP = kp;
-    KI = ki;
-    KD = kd;
-}
-void action_catch_ball::PIDController::PID_MaxMin(float max, float min)
-{
-    outputMax = max;
-    outputMin = min;
-}
-
-float action_catch_ball::PIDController::PosePID_Calc(float cur_error_)
-{
-     integral +=  cur_error_;
-
-    /*防止积分饱和*/
-    if ( integral >  integralMax)
-         integral =  integralMax;
-    if ( integral <  integralMin)
-         integral =  integralMin;
-
-     output =  KP *  cur_error_ +  KI *  integral +  KD * (error[1] - error[0]);
-     error[0] =  error[1];
-     error[1] =  cur_error_;
-
-    /*设定输出上限*/
-    if ( output >  outputMax)
-         output =  outputMax;
-    if ( output <  outputMin)
-         output =  outputMin;
-    return output;
-}
-
-int action_catch_ball::ActionCatchBall::acquire_PID_variable()
+int action_findball::ActionCatchBall::acquire_PID_variable()
 {
     std::filesystem::path currentPath = std::filesystem::current_path();
     RCLCPP_INFO(this->get_logger(), "currentPath: %s", currentPath.c_str());
@@ -741,7 +762,7 @@ int action_catch_ball::ActionCatchBall::acquire_PID_variable()
 }
 
 
-int action_catch_ball::ActionCatchBall::acquire_goal()
+int action_findball::ActionCatchBall::acquire_goal()
 {
     std::filesystem::path currentPath = std::filesystem::current_path();
     RCLCPP_INFO(this->get_logger(), "currentPath: %s", currentPath.c_str());
@@ -771,17 +792,10 @@ int action_catch_ball::ActionCatchBall::acquire_goal()
     return 0;
 }
 
-bool action_catch_ball::ActionCatchBall::up_decision_making()
+bool action_findball::ActionCatchBall::up_decision_making(
+    std::vector<geometry_msgs::msg::Point32> &ball_info_, 
+    std::vector<geometry_msgs::msg::Point32> &purple_info_, bool is_found_)
 {
-    bool is_found_ = false;
-    std::vector<geometry_msgs::msg::Point32> ball_info_;
-    std::vector<geometry_msgs::msg::Point32> purple_info_;
-    std::unique_lock<std::mutex> lock(variable_mutex_);
-    ball_info_.assign(ball_info.begin(), ball_info.end());
-    purple_info_.assign(purple_info.begin(), purple_info.end());
-    is_found_ = is_found;
-    lock.unlock();
-
     if(is_found_)
     {
         for(int i = 0; i< ball_info_.size(); i++)
@@ -816,11 +830,12 @@ bool action_catch_ball::ActionCatchBall::up_decision_making()
     else
     {
         RCLCPP_INFO(this->get_logger(), "Ball not found.......");
+        return false;
     }
     return true;
 }
 
-bool action_catch_ball::ActionCatchBall::jaw_decision_making()
+bool action_findball::ActionCatchBall::jaw_decision_making()
 {
     bool is_found_ = false;
     std::vector<geometry_msgs::msg::Point32> ball_info_;
@@ -832,17 +847,64 @@ bool action_catch_ball::ActionCatchBall::jaw_decision_making()
     lock.unlock();
 }
 
+void action_findball::ActionCatchBall::get_jointstate_callback(const sensor_msgs::msg::JointState::SharedPtr msg)
+{
+    std::unique_lock<std::mutex> lock(variable_mutex__1);
+    up_joint_state = *msg;
+    lock.unlock();
+}
+
+bool action_findball::ActionCatchBall::arm_executor(const std::shared_ptr<sensor_msgs::msg::JointState> JointControl_to_pub,
+                    const sensor_msgs::msg::JointState &JointState_,
+                        double joint1, double joint2, double joint3, double joint4)
+{
+    rclcpp::Rate loop_rate(20);
+    rclcpp::Rate action_rate(1.5);
+    int step = (fabs(JointState_.position[1]-joint2)/3.1415926*40.0 >= 1 ? fabs(JointState_.position[1]-joint2)/3.1415926*40:1.0);
+    RCLCPP_INFO(this->get_logger(), "step: %d", step);
+    RCLCPP_INFO(this->get_logger(), "JointState_current_pos: %f, %f, %f", JointState_.position[0], JointState_.position[1], JointState_.position[2]);
+    RCLCPP_INFO(this->get_logger(), "JointState_current_dif: %f, %f, %f", joint1 - JointState_.position[0], joint2 - JointState_.position[1], joint3 - JointState_.position[2]);
+
+    for(int i = 1;i <= step;i++)
+    {
+        JointControl_to_pub->position.clear();
+        JointControl_to_pub->position.push_back(joint1);
+        JointControl_to_pub->position.push_back(JointState_.position[1] + (joint2 - JointState_.position[1])/step*i);
+        JointControl_to_pub->position.push_back(joint3);
+        JointControl_to_pub->position.push_back(joint4);
+        JointControl_to_pub->header.stamp = this->now();
+        up_pub_->publish(*JointControl_to_pub);
+        loop_rate.sleep();
+    }
+    action_rate.sleep();
+    // JointControl_to_pub->position[1] = (joint2);
+    // up_pub_->publish(*JointControl_to_pub);
+    // action_rate.sleep();
+
+    if(fabs(JointState_.position[0]-joint1)<=0.1 &&
+        fabs(JointState_.position[1]-joint2)<=0.3 &&
+            fabs(JointState_.position[2]-joint3)<=0.1)
+    {
+        return true;
+    }
+    else{
+        return false;
+    }
+}
+
 int main(int argc, char * argv[])
 {
     setvbuf(stdout, NULL, _IONBF, BUFSIZ);
     rclcpp::init(argc, argv);
     rclcpp::executors::MultiThreadedExecutor executor;
-    auto action_catch = std::make_shared<action_catch_ball::ActionCatchBall>("action_catch");
+    auto action_catch = std::make_shared<action_findball::ActionCatchBall>("action_catch");
     executor.add_node(action_catch);
     executor.spin();
     rclcpp::shutdown();
     return 0;
 }
+
+
 
 /*
 {

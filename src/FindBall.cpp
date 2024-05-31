@@ -18,8 +18,8 @@ enum BallType { RED = 0, PURPLE = 1, BLUE = 2 };
 
 cv::Scalar lower_purple = cv::Scalar(142, 67, 41);
 cv::Scalar upper_purple = cv::Scalar(175, 162, 255);
-cv::Scalar lower_blue = cv::Scalar(111, 114, 0);
-cv::Scalar upper_blue = cv::Scalar(122, 175, 255);
+cv::Scalar lower_blue = cv::Scalar(104, 104, 0);
+cv::Scalar upper_blue = cv::Scalar(123, 215, 255);
 
 cv::Scalar lower_red = cv::Scalar(157, 100, 0);
 cv::Scalar upper_red = cv::Scalar(190, 251, 255);
@@ -286,7 +286,7 @@ bool CameraUPServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,std
         cv::Point center((int)ellipses_target[i][0], (int)ellipses_target[i][1]);
         cv::Size axes((int)ellipses_target[i][2] + (int)ellipses_target[i][3], (int)ellipses_target[i][2] + (int)ellipses_target[i][4]);
         target_ellipses.push_back(cv::Vec3d(center.x, center.y, axes.width/2.0 + axes.height/2.0));
-        cv::ellipse(color_image, center, axes, ellipses_target[i][5], 0, 360, cv::Scalar(0, 255, 0), 2);
+        //cv::ellipse(color_image, center, axes, ellipses_target[i][5], 0, 360, cv::Scalar(0, 255, 0), 2);
     }
     // 使用 lambda 表达式进行排序
     std::sort(target_ellipses.begin(), target_ellipses.end(), 
@@ -303,7 +303,7 @@ bool CameraUPServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,std
         cv::Point center((int)ellipses_purple[i][0], (int)ellipses_purple[i][1]);
         cv::Size axes((int)ellipses_purple[i][2] + (int)ellipses_purple[i][3], (int)ellipses_purple[i][2] + (int)ellipses_purple[i][4]);
         purple_ellipses.push_back(cv::Vec3d(center.x, center.y, axes.width/2.0 + axes.height/2.0));
-        cv::ellipse(color_image, center, axes, ellipses_purple[i][5], 0, 360, cv::Scalar(0, 0, 255), 2);
+        //cv::ellipse(color_image, center, axes, ellipses_purple[i][5], 0, 360, cv::Scalar(0, 0, 255), 2);
         //cv::rectangle(color_image, cv::Point(center.x - (axes.width/2.0 + axes.height/2.0), center.y - (axes.width/2.0 + axes.height/2.0)), cv::Point(center.x + (axes.width/2.0 + axes.height/2.0), center.y + (axes.width/2.0 + axes.height/2.0)), cv::Scalar(0, 0, 255), -1);
     }
     // 使用 lambda 表达式进行排序

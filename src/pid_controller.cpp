@@ -1,4 +1,5 @@
 #include "pid_controller.hpp"
+#include <iostream>
 
 
     /*增量式PID算法*/
@@ -96,6 +97,7 @@ int action_findball::PIDController::acquire_PID_variable(std::string variable_na
             if(axisName == variable_name)
             {
                 PID_setParam(kpElement->FloatText(), kiElement->FloatText(), kdElement->FloatText());
+                std::cout << "PID :" << variable_name << " " << "kp: " << kpElement->FloatText() << " ki: " << kiElement->FloatText() << " kd: " << kdElement->FloatText() << std::endl;
             }
         }
     }

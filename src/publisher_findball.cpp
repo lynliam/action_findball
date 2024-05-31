@@ -1,7 +1,9 @@
+#include <cstddef>
 #include <iostream>
 #include <memory>
 #include <mutex>
 #include <rc2024_interfaces/msg/detail/camera_switch__struct.hpp>
+#include <rclcpp/qos.hpp>
 #include <vector>
 #include <thread>
 #include <functional>
@@ -36,6 +38,8 @@ namespace PublisherFindballCPP {
                 findball_server_handler_up = std::make_shared<CameraUPServer>();
                 findball_server_handler_jaw = std::make_shared<CameraJawServer>();
                 findball_server_handler = findball_server_handler_up;
+                qos_profile = std::make_shared<rclcpp::QoS>(rclcpp::QoSInitialization::from_rmw(rmw_qos_profile_default));
+                qos_profile->reliability(rclcpp::ReliabilityPolicy::BestEffort);
                 this->create_subscription<rc2024_interfaces::msg::CameraSwitch>("camera_switch", 2, std::bind(&PublisherFindball::up_cmd_callback, this, std::placeholders::_1));
             }
             ~PublisherFindball()
@@ -71,20 +75,24 @@ namespace PublisherFindballCPP {
                     type = 2;
                     if(findball_server_handler->find_ball(type, ball_result, purple_result))
                     {
+
                         ball_info->balls_info.resize(ball_result.size());
                         ball_info->purple_info.resize(purple_result.size());
-                        for(auto &ball : ball_result)
+                        for(size_t i = 0;auto &ball : ball_result)
                         {
-                            ball_info->balls_info[0].x = ball[0];
-                            ball_info->balls_info[0].y = ball[1];
-                            ball_info->balls_info[0].z = ball[2];
+                            ball_info->balls_info[i].x = ball[0];
+                            ball_info->balls_info[i].y = ball[1];
+                            ball_info->balls_info[i].z = ball[2];
+                            i++;
                         }
-                        for(auto &purple : purple_result)
+                        for(size_t i = 0;auto &purple : purple_result)
                         {
-                            ball_info->purple_info[0].x = purple[0];
-                            ball_info->purple_info[0].y = purple[1];
-                            ball_info->purple_info[0].z = purple[2];
+                            ball_info->purple_info[i].x = purple[0];
+                            ball_info->purple_info[i].y = purple[1];
+                            ball_info->purple_info[i].z = purple[2];
+                            i++;
                         }
+                        ball_info->header.stamp = this->now();
                         ball_info->type = type;
                         ball_info->is_found = true;
                         publisher_->publish(*ball_info);
@@ -122,7 +130,9 @@ namespace PublisherFindballCPP {
             rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
             on_configure(const rclcpp_lifecycle::State &)
             {
-                publisher_ = this->create_publisher<rc2024_interfaces::msg::BallInfo>("ball_info", 10);
+                // 创建一个QoS配置对象，设置可靠性为BestEffort
+
+                publisher_ = this->create_publisher<rc2024_interfaces::msg::BallInfo>("ball_info",*qos_profile);
                 RCLCPP_INFO(get_logger(), "on_configure() is called.");
 
                 // We return a success and hence invoke the transition to the next
@@ -223,6 +233,8 @@ namespace PublisherFindballCPP {
             std::condition_variable condition_;
             bool signal;
             bool stop;
+
+            std::shared_ptr<rclcpp::QoS> qos_profile;
 
             int camera_flag;
             

@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <pid>
     <PTZ>
-        <kp>0.003</kp>
-        <ki>0.00002</ki>
-        <kd>0.01</kd>
+        <kp>0.0026</kp>
+        <ki>0.00001</ki>
+        <kd>0.001</kd>
     </PTZ>
     <x>
-        <kp>0.0003</kp>
+        <kp>0.0006</kp>
         <ki>0.00001</ki>
         <kd>0.001</kd>
     </x>
     <y>
         <kp>0.0003</kp>
-        <ki>0.00001</ki>
-        <kd>0.0001</kd>
+        <ki>0.00000</ki>
+        <kd>0.0000</kd>
     </y>
     <w>
         <kp>2.1</kp>

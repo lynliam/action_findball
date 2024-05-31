@@ -21,6 +21,8 @@
 
 #include <memory>
 #include <opencv2/opencv.hpp>
+#include <rclcpp/qos.hpp>
+#include <std_msgs/msg/detail/header__struct.hpp>
 
 namespace action_findball {
     using EmptyGoal = rc2024_interfaces::action::PutBall;
@@ -57,6 +59,7 @@ namespace action_findball {
             std::vector<geometry_msgs::msg::Point32> &ball_info_, 
             std::vector<geometry_msgs::msg::Point32> &purple_info_, bool is_found_, CATCHBALL &catchball_state);
 
+            std::shared_ptr<rclcpp::QoS> qos_profile;
 
             // 底盘
             rclcpp::Publisher<geometry_msgs::msg::Pose2D>::SharedPtr chassis_pub_;
@@ -83,6 +86,7 @@ namespace action_findball {
             //BallInfo variable
             std::vector<geometry_msgs::msg::Point32> ball_info;
             std::vector<geometry_msgs::msg::Point32> purple_info;
+            std_msgs::msg::Header ball_info_header;
             bool is_found;
 
             // 底盘 variable

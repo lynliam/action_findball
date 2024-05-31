@@ -25,7 +25,7 @@ static constexpr char const * node_get_state_topic = "findball/get_state";
 static constexpr char const * node_change_state_topic = "findball/change_state";
 
 // 判定接近球的阈值
-const int x_approach = 280;
+const int x_approach = 260;
 const int y_approach = 320;
 // 判定球将被抓住的阈值，相对于 image_size_half
 const int x_catch = 280;
@@ -61,10 +61,14 @@ action_findball::ApproachingBall::ApproachingBall(const std::string & node_name,
         std::bind(&ApproachingBall::handle_accepted, this, std::placeholders::_1),
         rcl_action_server_get_default_options(),
         callback_group_);
+
+        // 创建一个QoS配置对象，设置可靠性为BestEffort
+    qos_profile = std::make_shared<rclcpp::QoS>(rclcpp::QoSInitialization::from_rmw(rmw_qos_profile_default));
+    qos_profile->reliability(rclcpp::ReliabilityPolicy::BestEffort);
     
-    ballinfo_sub_= this->create_subscription<rc2024_interfaces::msg::BallInfo>("ball_info",2, std::bind(&ApproachingBall::ballinfo_callback,this,std::placeholders::_1));
+    ballinfo_sub_= this->create_subscription<rc2024_interfaces::msg::BallInfo>("ball_info",*qos_profile, std::bind(&ApproachingBall::ballinfo_callback,this,std::placeholders::_1));
     chassis_pub_ = this->create_publisher<geometry_msgs::msg::Pose2D>("/car/cmd_vel", 2);
-    chassis_sub_ = this->create_subscription<nav_msgs::msg::Odometry>("filtered_odom", 2, std::bind(&ApproachingBall::get_pose_callback,this,std::placeholders::_1));
+    chassis_sub_ = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 2, std::bind(&ApproachingBall::get_pose_callback,this,std::placeholders::_1));
     up_pub_ = this->create_publisher<sensor_msgs::msg::JointState>("/car/up_cmd", 2);
     up_sub_ = this->create_subscription<sensor_msgs::msg::JointState>("/car/up_fdbk", 3, std::bind(&ApproachingBall::get_jointstate_callback,this,std::placeholders::_1));
     camera_switch_pub_= this->create_publisher<rc2024_interfaces::msg::CameraSwitch>("camera_switch", 2);
@@ -72,8 +76,7 @@ action_findball::ApproachingBall::ApproachingBall(const std::string & node_name,
     Kalman = std::make_shared<cv::KalmanFilter>(4, 2);
     Kalman->measurementMatrix = (cv::Mat_<float>(2, 4) << 1, 0, 0, 0, 0, 1, 0, 0);
     Kalman->transitionMatrix = (cv::Mat_<float>(4, 4) << 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1);
-    Kalman->processNoiseCov = (cv::Mat_<float>(4, 4) << 0.01, 0, 0, 0, 0, 0.01, 0, 0, 0, 0, 0.01, 0, 0, 0, 0, 0.01);
-
+    Kalman->processNoiseCov = (cv::Mat_<float>(4, 4) << 0.3, 0, 0, 0, 0, 0.3, 0, 0, 0, 0, 0.3, 0, 0, 0, 0, 0.3);
 
     PIDController_PTZ.acquire_PID_variable("PTZ");
     PIDController_x.acquire_PID_variable("x");
@@ -137,6 +140,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
     std::vector<geometry_msgs::msg::Point32> ball_info_;
     std::vector<geometry_msgs::msg::Point32> purple_info_;
     bool is_found_;
+    std_msgs::msg::Header ball_info_header_;
 
     nav_msgs::msg::Odometry current_pose;
 
@@ -154,14 +158,22 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
     JointState_.position[1] = 0.0;
     JointState_.position[2] = 0.0;
     JointState_.position[3] = 0.0;
+
     JointState_Last.position.resize(4);
     JointState_Last.position.assign(JointState_.position.begin(), JointState_.position.end());
+
 
     JointControl_to_pub->header.frame_id="joint_control";
     JointControl_to_pub->name.push_back("Joint1");
     JointControl_to_pub->name.push_back("Joint2");
     JointControl_to_pub->name.push_back("Joint3");
     JointControl_to_pub->name.push_back("Joint4");
+
+    JointControl_to_pub->velocity.resize(4);
+    JointControl_to_pub->velocity[0] = 0.0;
+    JointControl_to_pub->velocity[1] = 0.0;
+    JointControl_to_pub->velocity[2] = 0.0;
+    JointControl_to_pub->velocity[3] = 0.0;
 
     // 获取初始位置
     lock_joint.lock();
@@ -171,9 +183,11 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
     lock_joint.unlock();
 
     // 关节初始化位置代码
+
+    JointControl_to_pub->velocity[0] = 0.0;
     arm_executor(JointControl_to_pub, JointState_, 0.0, 0.009, 0.594, -0.400);
 
-    //action_rate.sleep();
+    action_rate.sleep();
 
     while (rclcpp::ok()) {
         if(goal_handle->is_canceling())
@@ -182,7 +196,9 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
             {
                 RCLCPP_ERROR(this->get_logger(), "Failed to deactive node %s", lifecycle_node);
             }
+            JointControl_to_pub->velocity[0] = 0.0;
             arm_executor(JointControl_to_pub, JointState_, 0.0, 0.009, 0.594, -0.400);
+
             goal_handle->canceled(result);
             RCLCPP_INFO(this->get_logger(), "Goal canceled");
             return;
@@ -204,11 +220,15 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
         lock_ball.lock();
         ball_info_.assign(ball_info.begin(), ball_info.end());
         purple_info_.assign(purple_info.begin(), purple_info.end());
+        ball_info_header_ = ball_info_header;
         is_found_ = is_found;
         lock_ball.unlock();
         
         // 上层摄像头决策球
         up_decision_making(ball_info_, purple_info_, is_found_);
+        RCLCPP_INFO(this->get_logger(), "frame time: %f", ball_info_header_.stamp.sec + ball_info_header_.stamp.nanosec * 1e-9);
+        //RCLCPP_INFO(this->get_logger(), "now time: %f", this->now().seconds()+float(this->now().nanoseconds()*1e-9));
+        //RCLCPP_INFO(this->get_logger(), "The handle time: %f", (ball_info_header_.stamp.sec + float(ball_info_header_.stamp.nanosec) * 1e-9 - this->now().seconds()-float(this->now().nanoseconds()*1e-9)));
 
         switch (state_) {
             case (APPROACHINGBALL::IDLE):
@@ -220,23 +240,23 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 {
                     static int calmdown = 0;
                     // 云台控制
-                    if(fabs(img_center - tracking_ball.y) > 5)
-                        JointControl_to_pub->position[0] = PIDController_PTZ.PosePID_Calc( tracking_ball.y - img_center);
+                    JointControl_to_pub->position[0] = PIDController_PTZ.PID_Calc( img_center - tracking_ball.y);
+                    if(fabs(tracking_ball.y - img_center) < 5) JointControl_to_pub->position[0] = 0;
+                    RCLCPP_INFO(this->get_logger(), "PTZ: %f", JointControl_to_pub->position[0]);
 
                     // 底盘控制
                     Data_To_Pub.x = 0;
-                    Data_To_Pub.y = 0;
+                    Data_To_Pub.y = 0; 
                     Data_To_Pub.theta = 0;
 
-                    // if(fabs(tracking_ball.y - img_center) < 10) calmdown++;
-                    // if(calmdown > 10)
+                    // if(fabs(tracking_ball.y - img_center) < 20) calmdown++;
+                    // if(calmdown > 25)
                     // {
                     //     RCLCPP_INFO(this->get_logger(), "Ball in the center");
                     //     state_ = (APPROACHINGBALL::TOFORWARD);
                     //     calmdown = 0;
                     // }
                 }
-
                 // else {
                 //     state_ = (APPROACHINGBALL::LOST);
                 // }
@@ -245,20 +265,22 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 up_pub_->publish(*JointControl_to_pub);
                 break;
             }
-            /*
+            
             case (APPROACHINGBALL::TOFORWARD):
             {
                 static int state_inner = 0;
                 static Status spin_return;
                 static int calmdown = 0;
-                static float target_anlgle = JointState_.position[0];
-                static rclcpp::Duration time_allowance(3, 0);
+                static float target_anlgle;
+                RCLCPP_INFO(this->get_logger(), "target_anlgle: %f", target_anlgle);
+                static rclcpp::Duration time_allowance(8, 0);
                 //云台控制：
                 JointControl_to_pub->position[0] = 0;
                 
                 // 底盘控制
                 if(state_inner == 0)
                 {
+                    target_anlgle = JointState_.position[0];
                     spin_to_func->onRun(target_anlgle, time_allowance, current_pose);
                     RCLCPP_INFO(this->get_logger(), "Forwarding");
                     state_inner = 1;
@@ -267,12 +289,12 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     if(spin_return == Status::SUCCEEDED)  state_inner = 2;
                 }
 
-                if(fabs(tracking_ball.y - img_center) < 5 && spin_return == Status::SUCCEEDED) 
+                if(spin_return == Status::SUCCEEDED) 
                 {
                     calmdown++;
                 }
 
-                if(calmdown > 5)
+                if(calmdown > 25)
                 {
                     RCLCPP_INFO(this->get_logger(), "Forward Down!");
                     state_ = (APPROACHINGBALL::APPROACHING);
@@ -284,54 +306,58 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 break;
             }
 
-            // case (APPROACHINGBALL::APPROACHING):
-            // {
-            //     JointControl_to_pub->position[0] = PIDController_PTZ.PID_Calc(tracking_ball.x-img_center);
-
+            case (APPROACHINGBALL::APPROACHING):
+            {
+                //JointControl_to_pub->position[0] = PIDController_PTZ.PID_Calc(tracking_ball.x-img_center);
+                arm_executor(JointControl_to_pub, JointState_, 0.0, 0.009, 0.594, -0.223);
                 
-            //     Data_To_Pub.x = -PIDController_x.PID_Calc(x_approach - tracking_ball.x);
-            //     Data_To_Pub.y = -PIDController_y.PID_Calc(y_approach- tracking_ball.y);
-            //     Data_To_Pub.theta = 0;
+                Data_To_Pub.x = -PIDController_x.PID_Calc(x_approach - tracking_ball.x);
+                Data_To_Pub.y = PIDController_y.PID_Calc(y_approach- tracking_ball.y);
+                Data_To_Pub.theta = 0;
+                RCLCPP_INFO(this->get_logger(), "Data_To_Pub: %f, %f", Data_To_Pub.x, Data_To_Pub.y);
 
-            //     // Data_To_Pub.x = -PIDController_x.PID_Calc((x_approach - tracking_ball.x)*cos(JointState_.position[0]));
-            //     // Data_To_Pub.y = -PIDController_y.PID_Calc((y_approach - tracking_ball.y)*sin(JointState_.position[0]));
-            //     // Data_To_Pub.theta = 0;
-            //     //JointControl_to_pub->position[0] = PIDController_PTZ.PID_Calc(tracking_ball.x-img_center);
+                // Data_To_Pub.x = -PIDController_x.PID_Calc((x_approach - tracking_ball.x)*cos(JointState_.position[0]));
+                // Data_To_Pub.y = -PIDController_y.PID_Calc((y_approach - tracking_ball.y)*sin(JointState_.position[0]));
+                // Data_To_Pub.theta = 0;
+                //JointControl_to_pub->position[0] = PIDController_PTZ.PID_Calc(tracking_ball.x-img_center);
 
-            //     if(fabs(tracking_ball.x - x_approach) < 5 && fabs(tracking_ball.y - y_approach) < 5)
-            //     {
-            //         RCLCPP_INFO(this->get_logger(), "Ball approached");
-            //         camera_switch.index = 0;
-            //         camera_switch_pub_->publish(camera_switch);
-            //         state_ = (APPROACHINGBALL::CATCHING);
-            //     }
-            //     chassis_pub_->publish(Data_To_Pub);
-            //     up_pub_->publish(*JointControl_to_pub);
-            //     break;
-            // }
-
-            // case (APPROACHINGBALL::CATCHING):
-            // {
-            //     JointControl_to_pub->position[0] = PIDController_PTZ.PID_Calc(tracking_ball.x-img_center);
-
-            //     Data_To_Pub.x = -PIDController_x.PID_Calc((x_catch - tracking_ball.x)*cos(JointState_.position[0]));
-            //     Data_To_Pub.y = -PIDController_y.PID_Calc((y_catch - tracking_ball.y)*sin(JointState_.position[0]));
-            //     Data_To_Pub.theta = 0;
-
-            //     if(fabs(tracking_ball.x - x_catch) < 5 && fabs(tracking_ball.y - y_catch) < 5 && tracking_ball.z > 500)
-            //     {
-            //         RCLCPP_INFO(this->get_logger(), "Catching");
-            //         camera_switch.index = 1;
-            //         camera_switch_pub_->publish(camera_switch);
-            //         state_ = (APPROACHINGBALL::SUCCEED);
-            //     }
-
-            //     chassis_pub_->publish(Data_To_Pub);
-            //     up_pub_->publish(*JointControl_to_pub);
-            //     break;
-            // }
-
+                if(fabs(tracking_ball.x - x_approach) < 5 && fabs(tracking_ball.y - y_approach) < 5)
+                {
+                    Data_To_Pub.x = 0;
+                    Data_To_Pub.y = 0;
+                    Data_To_Pub.theta = 0;
+                    RCLCPP_INFO(this->get_logger(), "Ball approached");
+                    camera_switch.index = 0;
+                    camera_switch_pub_->publish(camera_switch);
+                    state_ = (APPROACHINGBALL::CATCHING);
+                }
+                chassis_pub_->publish(Data_To_Pub);
+                up_pub_->publish(*JointControl_to_pub);
+                break;
+            }
 /*
+            case (APPROACHINGBALL::CATCHING):
+            {
+                JointControl_to_pub->position[0] = PIDController_PTZ.PID_Calc(tracking_ball.x-img_center);
+
+                Data_To_Pub.x = -PIDController_x.PID_Calc((x_catch - tracking_ball.x)*cos(JointState_.position[0]));
+                Data_To_Pub.y = -PIDController_y.PID_Calc((y_catch - tracking_ball.y)*sin(JointState_.position[0]));
+                Data_To_Pub.theta = 0;
+
+                if(fabs(tracking_ball.x - x_catch) < 5 && fabs(tracking_ball.y - y_catch) < 5 && tracking_ball.z > 500)
+                {
+                    RCLCPP_INFO(this->get_logger(), "Catching");
+                    camera_switch.index = 1;
+                    camera_switch_pub_->publish(camera_switch);
+                    state_ = (APPROACHINGBALL::SUCCEED);
+                }
+
+                chassis_pub_->publish(Data_To_Pub);
+                up_pub_->publish(*JointControl_to_pub);
+                break;
+            }
+
+
             case (APPROACHINGBALL::LOST):
             {
                 RCLCPP_INFO(this->get_logger(), "Ball lost");
@@ -566,6 +592,7 @@ void action_findball::ApproachingBall::ballinfo_callback(const rc2024_interfaces
     std::unique_lock<std::mutex> lock(variable_mutex_);
     ball_info.assign(msg->balls_info.begin(), msg->balls_info.end());
     purple_info.assign(msg->purple_info.begin(), msg->purple_info.end());
+    ball_info_header = msg->header;
     is_found = msg->is_found;
     if(is_found)
         tracking_ball = msg->balls_info[0];
@@ -608,6 +635,7 @@ bool action_findball::ApproachingBall::up_decision_making(
                 tracking_ball.x = current_measurement[1];
                 tracking_ball.y = current_measurement[0];
                 tracking_ball.z = current_radius;
+                //RCLCPP_INFO(this->get_logger(), "target x: %f, y: %f", tracking_ball.x, tracking_ball.y);
                 //cv::circle(color_image,cv::Point(last_measurement[0],last_measurement[1]),last_radius,cv::Scalar(255,0,0),2);
             }
         }
@@ -715,7 +743,7 @@ bool action_findball::ApproachingBall::arm_executor(const std::shared_ptr<sensor
         up_pub_->publish(*JointControl_to_pub);
         loop_rate.sleep();
     }
-    action_rate.sleep();
+    //action_rate.sleep();
     // JointControl_to_pub->position[1] = (joint2);
     // up_pub_->publish(*JointControl_to_pub);
     // action_rate.sleep();

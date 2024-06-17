@@ -2,6 +2,7 @@
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include <opencv2/imgcodecs.hpp>
 #include <rc2024_interfaces/msg/detail/camera_switch__struct.hpp>
 #include <rclcpp/qos.hpp>
 #include <vector>
@@ -9,6 +10,9 @@
 #include <functional>
 #include <condition_variable>
 #include <thread>
+
+#include <curl/curl.h>
+
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs//msg/string.hpp"
@@ -35,8 +39,9 @@ namespace PublisherFindballCPP {
                 RCLCPP_INFO(this->get_logger(), "PublisherFindball Node has been created");
                 this->declare_parameter<int>("balltype", 2);
                 //publisher_ = this->create_publisher<rc2024_interfaces::msg::BallInfo>("ball_info", 10);
+                curl = curl_easy_init();
                 findball_server_handler_up = std::make_shared<CameraUPServer>();
-                findball_server_handler_jaw = std::make_shared<CameraJawServer>();
+                //findball_server_handler_jaw = std::make_shared<CameraJawServer>();
                 findball_server_handler = findball_server_handler_up;
                 qos_profile = std::make_shared<rclcpp::QoS>(rclcpp::QoSInitialization::from_rmw(rmw_qos_profile_default));
                 qos_profile->reliability(rclcpp::ReliabilityPolicy::BestEffort);
@@ -52,7 +57,8 @@ namespace PublisherFindballCPP {
                 rclcpp::Rate rate(1000);
                 RCLCPP_INFO(this->get_logger(), "PublisherFindball thread was created");
                 std::unique_lock<std::mutex> lock_flag(mutex_flag, std::defer_lock);
-                
+                if(curl) curl_easy_setopt(curl, CURLOPT_URL, "http://0.0.0.0:8000/upload");  // 设置URL
+                cv::Mat color_img;
                 while(rclcpp::ok())
                 {
                     std::unique_lock<std::mutex> lock(mutex_);
@@ -92,6 +98,7 @@ namespace PublisherFindballCPP {
                             ball_info->purple_info[i].z = purple[2];
                             i++;
                         }
+                        //findball_server_handler->imgshow_DEBUG();
                         ball_info->header.stamp = this->now();
                         ball_info->type = type;
                         ball_info->is_found = true;
@@ -110,6 +117,39 @@ namespace PublisherFindballCPP {
                         // ball_info->is_found = false;
                         // publisher_->publish(*ball_info);
                     }
+                    findball_server_handler->get_color_img(color_img);
+                    
+                    if(!color_img.empty())
+                    {
+                        cv::imencode(".jpg", color_img, buf);
+                        std::string img_data(buf.begin(), buf.end());
+                        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, img_data.c_str());
+                        curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, img_data.size());
+                        // 设置超时时间
+                        curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 50L);
+
+                        // 执行请求
+                        res = curl_easy_perform(curl);
+                        // 检查错误码
+                        if(res != CURLE_OK) {
+                            if(res == CURLE_OPERATION_TIMEDOUT) {
+                                std::cerr << "操作超时，丢帧处理" << std::endl;
+                            } else if(res == CURLE_COULDNT_CONNECT) {
+                                std::cerr << "无法连接到服务器，服务端是不是还没开起来?" << std::endl;
+                            } else {
+                                std::cerr << "请求失败: " << curl_easy_strerror(res) << std::endl;
+                            }
+                        } else {
+                            // 检查HTTP响应码
+                            long response_code;
+                            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+                            std::cout << "HTTP响应码: " << response_code << std::endl;
+                            if(response_code != 200) {
+                                std::cerr << "接口名字是不是写错了" << std::endl;
+                            }
+                        }
+                    }
+                    
                     //findball_server_handler->imgshow_DEBUG();
                     rate.sleep();
                 }
@@ -234,9 +274,14 @@ namespace PublisherFindballCPP {
             bool signal;
             bool stop;
 
+            std::vector<uchar> buf;
+
             std::shared_ptr<rclcpp::QoS> qos_profile;
 
             int camera_flag;
+
+            CURL* curl;
+            CURLcode res;
             
     };
 } // namespace action_findball_cpp

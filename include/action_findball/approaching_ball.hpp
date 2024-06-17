@@ -55,6 +55,8 @@ namespace action_findball {
             std::vector<geometry_msgs::msg::Point32> &ball_info_, 
             std::vector<geometry_msgs::msg::Point32> &purple_info_, bool is_found_);
 
+            float PTZ_ANGLE_decision_making(geometry_msgs::msg::Point32 &tracking_ball_);
+
             bool jaw_decision_making(
             std::vector<geometry_msgs::msg::Point32> &ball_info_, 
             std::vector<geometry_msgs::msg::Point32> &purple_info_, bool is_found_, CATCHBALL &catchball_state);

@@ -51,7 +51,7 @@ async def video_viewer():
             </head>
             <body>
                 <h1>Real-time Video Viewer</h1>
-                <img id="video_frame" src="#" alt="Video Feed" width="640" height="480"/>
+                <img id="video_frame" src="#" alt="Video Feed" width="800" height="600"/>
                 <script>
                     var video_frame = document.getElementById("video_frame");
                     var ws = new WebSocket("ws://" + window.location.host + "/ws");

@@ -2,6 +2,7 @@
 #include "camera_distribute.hpp"
 #include "ximgproc/find_ellipses.hpp"
 #include <iostream>
+#include "calibration.hpp"
 
 //#define ENABLE_THRESHOLD
 //#define ENABLE_IMSHOW
@@ -18,8 +19,14 @@ enum BallType { RED = 0, PURPLE = 1, BLUE = 2 };
 
 cv::Scalar lower_purple = cv::Scalar(142, 67, 41);
 cv::Scalar upper_purple = cv::Scalar(175, 162, 255);
-cv::Scalar lower_blue = cv::Scalar(104, 104, 0);
-cv::Scalar upper_blue = cv::Scalar(123, 215, 255);
+// cv::Scalar lower_blue = cv::Scalar(104, 104, 0);
+// cv::Scalar upper_blue = cv::Scalar(123, 215, 255);
+
+// cv::Scalar lower_blue = cv::Scalar(97, 127, 0);
+// cv::Scalar upper_blue = cv::Scalar(132, 245, 255);
+
+cv::Scalar lower_blue = cv::Scalar(97, 92, 0);
+cv::Scalar upper_blue = cv::Scalar(132, 177, 255);
 
 cv::Scalar lower_red = cv::Scalar(157, 100, 0);
 cv::Scalar upper_red = cv::Scalar(190, 251, 255);
@@ -64,6 +71,13 @@ FindBallServer::~FindBallServer()
 bool FindBallServer::usbcamera_init(int camera_up_index_)
 {
     this->cap->open(camera_up_index_);
+    this->cap->open(camera_up_index_,cv::CAP_V4L2);
+    this->cap->set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+    cap->set(cv::CAP_PROP_FPS, 60);
+    // cap->set(cv::CAP_PROP_FRAME_WIDTH, 640);
+    // cap->set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+    cap->set(cv::CAP_PROP_FRAME_WIDTH, 800);
+    cap->set(cv::CAP_PROP_FRAME_HEIGHT, 600);
     if ((!cap->isOpened()) || (!cap->isOpened())) {
         return false;
     }
@@ -82,6 +96,7 @@ bool FindBallServer::usbcamera_getImage(cv::Mat &frame)
     if (frame.empty()) {
         return false;
     }
+    Capture_Calibration(frame, frame);
     return true;
 }
 
@@ -210,10 +225,13 @@ void FindBallServer::imgshow_DEBUG()
 
 bool CameraUPServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,std::vector<cv::Vec3d> &purple_result)
 {
-    usbcamera_getImage(color_image);
+    this->usbcamera_getImage(color_image);
     if (color_image.empty()) {
         return false;
     }
+
+    //double frame_rate = this->cap->get(cv::CAP_PROP_FPS);
+    //std::cout << "摄像头的帧率: "<< frame_rate << std::endl;
 
     hsv.release();
     mask.release();
@@ -233,6 +251,8 @@ bool CameraUPServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,std
     purple_ellipses.clear();
 
     cv::cvtColor(color_image, hsv, cv::COLOR_BGR2HSV);
+    cv::medianBlur(hsv, hsv, 5);
+    cv::GaussianBlur(hsv, hsv, cv::Size(9, 9), 0);
 
     cv::inRange(hsv, lower_purple, upper_purple, mask_for_purple);
     cv::inRange(hsv, this->lower[type], this->upper[type], mask);
@@ -241,16 +261,16 @@ bool CameraUPServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,std
     {
         cv::inRange(hsv, lower_red_1, upper_red_1, mask2);
         cv::bitwise_or(mask, mask2, red_mask);
-        cv::bitwise_and(color_image, color_image, img_for_target, red_mask);
+        cv::bitwise_and(hsv, hsv, img_for_target, red_mask);
 
     }else{
-        cv::bitwise_and(color_image, color_image, img_for_target, mask);
+        cv::bitwise_and(hsv, hsv, img_for_target, mask);
     }
     cv::bitwise_and(color_image, color_image, img_for_purple,mask_for_purple);
 
 
-    cv::GaussianBlur(img_for_purple, img_for_purple, cv::Size(9, 9), 0);
-    cv::GaussianBlur(img_for_target, img_for_target, cv::Size(9, 9), 0);
+    // cv::GaussianBlur(img_for_purple, img_for_purple, cv::Size(7, 7), 0);
+    // cv::GaussianBlur(img_for_target, img_for_target, cv::Size(7, 7), 0);
 
     cv::cvtColor(img_for_purple, gray_for_purple, cv::COLOR_BGR2GRAY);
     cv::cvtColor(img_for_target, gray_for_target, cv::COLOR_BGR2GRAY);
@@ -261,114 +281,7 @@ bool CameraUPServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,std
     cv::morphologyEx(thre_for_purple, thre_for_purple, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5)), cv::Point(-1, -1), 2);
     cv::morphologyEx(thre_for_target, thre_for_target, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5)), cv::Point(-1, -1), 2);
 
-    cv::findContours(thre_for_purple, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-    for (auto contour : contours) {
-        cv::fillPoly(thre_for_purple, contour, cv::Scalar(255, 255, 255));
-    }
     contours.clear();
-    cv::findContours(thre_for_target, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-    for (auto contour : contours) {
-        cv::fillPoly(thre_for_target, contour, cv::Scalar(255, 255, 255));
-    }
-
-    //target
-    ed->detectEdges(thre_for_target);
-    ed->getEdgeImage(edge_images_1);
-    ed->detectEllipses(ellipses_target);
-
-    //purple
-    ed->detectEdges(thre_for_purple);
-    ed->getEdgeImage(edge_images_2);
-    ed->detectEllipses(ellipses_purple);
-
-    for (size_t i=0; i<ellipses_target.size(); i++)
-    {
-        cv::Point center((int)ellipses_target[i][0], (int)ellipses_target[i][1]);
-        cv::Size axes((int)ellipses_target[i][2] + (int)ellipses_target[i][3], (int)ellipses_target[i][2] + (int)ellipses_target[i][4]);
-        target_ellipses.push_back(cv::Vec3d(center.x, center.y, axes.width/2.0 + axes.height/2.0));
-        //cv::ellipse(color_image, center, axes, ellipses_target[i][5], 0, 360, cv::Scalar(0, 255, 0), 2);
-    }
-    // 使用 lambda 表达式进行排序
-    std::sort(target_ellipses.begin(), target_ellipses.end(), 
-            [](const cv::Vec3d& a, const cv::Vec3d& b) {
-            return a[1] > b[1]; // 按 center.y 降序排序
-            });
-    if(target_ellipses.size() == 0)
-        return false;
-    ball_result.resize(5);
-    ball_result.assign(target_ellipses.begin(), target_ellipses.end());
-
-    for (size_t i=0; i<ellipses_purple.size(); i++)
-    {
-        cv::Point center((int)ellipses_purple[i][0], (int)ellipses_purple[i][1]);
-        cv::Size axes((int)ellipses_purple[i][2] + (int)ellipses_purple[i][3], (int)ellipses_purple[i][2] + (int)ellipses_purple[i][4]);
-        purple_ellipses.push_back(cv::Vec3d(center.x, center.y, axes.width/2.0 + axes.height/2.0));
-        //cv::ellipse(color_image, center, axes, ellipses_purple[i][5], 0, 360, cv::Scalar(0, 0, 255), 2);
-        //cv::rectangle(color_image, cv::Point(center.x - (axes.width/2.0 + axes.height/2.0), center.y - (axes.width/2.0 + axes.height/2.0)), cv::Point(center.x + (axes.width/2.0 + axes.height/2.0), center.y + (axes.width/2.0 + axes.height/2.0)), cv::Scalar(0, 0, 255), -1);
-    }
-    // 使用 lambda 表达式进行排序
-    std::sort(purple_ellipses.begin(), purple_ellipses.end(), 
-            [](const cv::Vec3d& a, const cv::Vec3d& b) {
-            return a[1] > b[1]; // 按 center.y 降序排序
-            });
-    purple_result.resize(5);
-    purple_result.assign(purple_ellipses.begin(), purple_ellipses.end());
-    return true;
-}
-
-bool CameraJawServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,std::vector<cv::Vec3d> &purple_result)
-{
-    usbcamera_getImage(color_image);
-    if (color_image.empty()) {
-        return false;
-    }
-
-    hsv.release();
-    mask.release();
-    mask2.release();
-    red_mask.release();
-    edge_images_1.release();
-    edge_images_2.release();
-    img_for_purple.release();
-    img_for_target.release();
-    gray_for_purple.release();
-    gray_for_purple.release();
-    thre_for_purple.release();
-    thre_for_target.release();
-    ellipses_purple.clear();
-    ellipses_target.clear();
-    target_ellipses.clear();
-    purple_ellipses.clear();
-
-    cv::cvtColor(color_image, hsv, cv::COLOR_BGR2HSV);
-
-    cv::inRange(hsv, lower_purple, upper_purple, mask_for_purple);
-    cv::inRange(hsv, this->lower[type], this->upper[type], mask);
-    
-    if(type == 0)
-    {
-        cv::inRange(hsv, lower_red_1, upper_red_1, mask2);
-        cv::bitwise_or(mask, mask2, red_mask);
-        cv::bitwise_and(color_image, color_image, img_for_target, red_mask);
-
-    }else{
-        cv::bitwise_and(color_image, color_image, img_for_target, mask);
-    }
-    cv::bitwise_and(color_image, color_image, img_for_purple,mask_for_purple);
-
-
-    cv::GaussianBlur(img_for_purple, img_for_purple, cv::Size(9, 9), 0);
-    cv::GaussianBlur(img_for_target, img_for_target, cv::Size(9, 9), 0);
-
-    cv::cvtColor(img_for_purple, gray_for_purple, cv::COLOR_BGR2GRAY);
-    cv::cvtColor(img_for_target, gray_for_target, cv::COLOR_BGR2GRAY);
-
-    cv::threshold(gray_for_purple, thre_for_purple, 0, 255, cv::THRESH_BINARY);
-    cv::threshold(gray_for_target, thre_for_target, 0, 255, cv::THRESH_BINARY);
-    
-    cv::morphologyEx(thre_for_purple, thre_for_purple, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5)), cv::Point(-1, -1), 2);
-    cv::morphologyEx(thre_for_target, thre_for_target, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5)), cv::Point(-1, -1), 2);
-
     cv::findContours(thre_for_purple, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
     for (auto contour : contours) {
         cv::fillPoly(thre_for_purple, contour, cv::Scalar(255, 255, 255));
@@ -403,6 +316,9 @@ bool CameraJawServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,st
             });
     if(target_ellipses.size() == 0)
         return false;
+    cv::Point center((int)ellipses_target[0][0], (int)ellipses_target[0][1]);
+        cv::Size axes((int)ellipses_target[0][2] + (int)ellipses_target[0][3], (int)ellipses_target[0][2] + (int)ellipses_target[0][4]);
+    cv::ellipse(color_image, center, axes, ellipses_target[0][5], 0, 360, cv::Scalar(0, 255, 0), 2);
     ball_result.resize(5);
     ball_result.assign(target_ellipses.begin(), target_ellipses.end());
 
@@ -411,7 +327,7 @@ bool CameraJawServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,st
         cv::Point center((int)ellipses_purple[i][0], (int)ellipses_purple[i][1]);
         cv::Size axes((int)ellipses_purple[i][2] + (int)ellipses_purple[i][3], (int)ellipses_purple[i][2] + (int)ellipses_purple[i][4]);
         purple_ellipses.push_back(cv::Vec3d(center.x, center.y, axes.width/2.0 + axes.height/2.0));
-        cv::ellipse(color_image, center, axes, ellipses_purple[i][5], 0, 360, cv::Scalar(0, 0, 255), 2);
+        //cv::ellipse(color_image, center, axes, ellipses_purple[i][5], 0, 360, cv::Scalar(0, 0, 255), 2);
         //cv::rectangle(color_image, cv::Point(center.x - (axes.width/2.0 + axes.height/2.0), center.y - (axes.width/2.0 + axes.height/2.0)), cv::Point(center.x + (axes.width/2.0 + axes.height/2.0), center.y + (axes.width/2.0 + axes.height/2.0)), cv::Scalar(0, 0, 255), -1);
     }
     // 使用 lambda 表达式进行排序
@@ -421,7 +337,123 @@ bool CameraJawServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,st
             });
     purple_result.resize(5);
     purple_result.assign(purple_ellipses.begin(), purple_ellipses.end());
+    return true;
+}
 
+bool CameraJawServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,std::vector<cv::Vec3d> &purple_result)
+{
+    this->usbcamera_getImage(color_image);
+    if (color_image.empty()) {
+        return false;
+    }
+
+    //double frame_rate = this->cap->get(cv::CAP_PROP_FPS);
+    //std::cout << "摄像头的帧率: "<< frame_rate << std::endl;
+
+    hsv.release();
+    mask.release();
+    mask2.release();
+    red_mask.release();
+    edge_images_1.release();
+    edge_images_2.release();
+    img_for_purple.release();
+    img_for_target.release();
+    gray_for_purple.release();
+    gray_for_purple.release();
+    thre_for_purple.release();
+    thre_for_target.release();
+    ellipses_purple.clear();
+    ellipses_target.clear();
+    target_ellipses.clear();
+    purple_ellipses.clear();
+
+    cv::cvtColor(color_image, hsv, cv::COLOR_BGR2HSV);
+    cv::medianBlur(hsv, hsv, 5);
+    cv::GaussianBlur(hsv, hsv, cv::Size(9, 9), 0);
+
+    cv::inRange(hsv, lower_purple, upper_purple, mask_for_purple);
+    cv::inRange(hsv, this->lower[type], this->upper[type], mask);
+    
+    if(type == 0)
+    {
+        cv::inRange(hsv, lower_red_1, upper_red_1, mask2);
+        cv::bitwise_or(mask, mask2, red_mask);
+        cv::bitwise_and(hsv, hsv, img_for_target, red_mask);
+
+    }else{
+        cv::bitwise_and(hsv, hsv, img_for_target, mask);
+    }
+    cv::bitwise_and(color_image, color_image, img_for_purple,mask_for_purple);
+
+
+    // cv::GaussianBlur(img_for_purple, img_for_purple, cv::Size(7, 7), 0);
+    // cv::GaussianBlur(img_for_target, img_for_target, cv::Size(7, 7), 0);
+
+    cv::cvtColor(img_for_purple, gray_for_purple, cv::COLOR_BGR2GRAY);
+    cv::cvtColor(img_for_target, gray_for_target, cv::COLOR_BGR2GRAY);
+
+    cv::threshold(gray_for_purple, thre_for_purple, 0, 255, cv::THRESH_BINARY);
+    cv::threshold(gray_for_target, thre_for_target, 0, 255, cv::THRESH_BINARY);
+    
+    cv::morphologyEx(thre_for_purple, thre_for_purple, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5)), cv::Point(-1, -1), 2);
+    cv::morphologyEx(thre_for_target, thre_for_target, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5)), cv::Point(-1, -1), 2);
+
+    contours.clear();
+    cv::findContours(thre_for_purple, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+    for (auto contour : contours) {
+        cv::fillPoly(thre_for_purple, contour, cv::Scalar(255, 255, 255));
+    }
+    contours.clear();
+    cv::findContours(thre_for_target, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+    for (auto contour : contours) {
+        cv::fillPoly(thre_for_target, contour, cv::Scalar(255, 255, 255));
+    }
+
+    //target
+    ed->detectEdges(thre_for_target);
+    ed->getEdgeImage(edge_images_1);
+    ed->detectEllipses(ellipses_target);
+
+    //purple
+    ed->detectEdges(thre_for_purple);
+    ed->getEdgeImage(edge_images_2);
+    ed->detectEllipses(ellipses_purple);
+
+    for (size_t i=0; i<ellipses_target.size(); i++)
+    {
+        cv::Point center((int)ellipses_target[i][0], (int)ellipses_target[i][1]);
+        cv::Size axes((int)ellipses_target[i][2] + (int)ellipses_target[i][3], (int)ellipses_target[i][2] + (int)ellipses_target[i][4]);
+        target_ellipses.push_back(cv::Vec3d(center.x, center.y, axes.width/2.0 + axes.height/2.0));
+        cv::ellipse(color_image, center, axes, ellipses_target[i][5], 0, 360, cv::Scalar(0, 255, 0), 2);
+    }
+    // 使用 lambda 表达式进行排序
+    std::sort(target_ellipses.begin(), target_ellipses.end(), 
+            [](const cv::Vec3d& a, const cv::Vec3d& b) {
+            return a[1] > b[1]; // 按 center.y 降序排序
+            });
+    if(target_ellipses.size() == 0)
+        return false;
+    cv::Point center((int)ellipses_target[0][0], (int)ellipses_target[0][1]);
+        cv::Size axes((int)ellipses_target[0][2] + (int)ellipses_target[0][3], (int)ellipses_target[0][2] + (int)ellipses_target[0][4]);
+    cv::ellipse(color_image, center, axes, ellipses_target[0][5], 0, 360, cv::Scalar(0, 255, 0), 2);
+    ball_result.resize(5);
+    ball_result.assign(target_ellipses.begin(), target_ellipses.end());
+
+    for (size_t i=0; i<ellipses_purple.size(); i++)
+    {
+        cv::Point center((int)ellipses_purple[i][0], (int)ellipses_purple[i][1]);
+        cv::Size axes((int)ellipses_purple[i][2] + (int)ellipses_purple[i][3], (int)ellipses_purple[i][2] + (int)ellipses_purple[i][4]);
+        purple_ellipses.push_back(cv::Vec3d(center.x, center.y, axes.width/2.0 + axes.height/2.0));
+        //cv::ellipse(color_image, center, axes, ellipses_purple[i][5], 0, 360, cv::Scalar(0, 0, 255), 2);
+        //cv::rectangle(color_image, cv::Point(center.x - (axes.width/2.0 + axes.height/2.0), center.y - (axes.width/2.0 + axes.height/2.0)), cv::Point(center.x + (axes.width/2.0 + axes.height/2.0), center.y + (axes.width/2.0 + axes.height/2.0)), cv::Scalar(0, 0, 255), -1);
+    }
+    // 使用 lambda 表达式进行排序
+    std::sort(purple_ellipses.begin(), purple_ellipses.end(), 
+            [](const cv::Vec3d& a, const cv::Vec3d& b) {
+            return a[1] > b[1]; // 按 center.y 降序排序
+            });
+    purple_result.resize(5);
+    purple_result.assign(purple_ellipses.begin(), purple_ellipses.end());
     return true;
 }
 
@@ -453,4 +485,38 @@ bool FindBallServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,std
 {
     std::cerr << "错误调用！！！！！！" << std::endl;
     return false;
+}
+
+void FindBallServer::get_color_img(cv::Mat &frame)
+{
+    std::cerr << "错误调用！！！！！！" << std::endl;
+}
+
+void CameraJawServer::get_color_img(cv::Mat &frame)
+{
+    frame = this->color_image;
+}
+
+void CameraUPServer::get_color_img(cv::Mat &frame)
+{
+    frame = this -> color_image;
+}
+
+bool CameraJawServer::usbcamera_getImage(cv::Mat &frame)
+{
+    this->cap->read(frame);
+    if (frame.empty()) {
+        return false;
+    }
+    return true;
+}
+
+bool CameraUPServer::usbcamera_getImage(cv::Mat &frame)
+{
+    this->cap->read(frame);
+    if (frame.empty()) {
+        return false;
+    }
+    Capture_Calibration(frame, frame);
+    return true;
 }

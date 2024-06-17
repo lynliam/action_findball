@@ -9,9 +9,10 @@ namespace action_findball {
         TOFORWARD = 2,
         APPROACHING = 3,
         CATCHING = 4,
-        LOST = 5,
-        FINDING = 6,
-        SUCCEED = 7
+        CATCHING_2 = 5,
+        LOST = 6,
+        FINDING = 7,
+        SUCCEED = 8
     };
 
     enum class Status : int8_t

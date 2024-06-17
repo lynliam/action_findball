@@ -28,10 +28,11 @@ class FindBallServer
     ~FindBallServer();   // 析构函数
 
     virtual bool find_ball(int type, std::vector<cv::Vec3d> &ball_result,std::vector<cv::Vec3d> &purple_result);
+    virtual void get_color_img(cv::Mat &frame);
 
     bool usbcamera_init(int camera_up_index_);
     bool usbcamera_deinit();
-    bool usbcamera_getImage(cv::Mat &frame);
+    virtual bool usbcamera_getImage(cv::Mat &frame);
     bool usbcamera_getImage();
 
     void EDinit(cv::Ptr<cv::ximgproc::EdgeDrawing> &ed,
@@ -44,6 +45,7 @@ class FindBallServer
 
     //std::shared_ptr<cv::KalmanFilter> Kalman;
 
+    cv::Mat color_image;
     protected:
     std::vector<cv::Scalar> lower = {lower_red, lower_purple, lower_blue};
     std::vector<cv::Scalar> upper = {upper_red, upper_purple, upper_blue};
@@ -52,7 +54,6 @@ class FindBallServer
 
     // variables
     cv::Mat temp_frame;
-    cv::Mat color_image;
     cv::Mat hsv;
     cv::Mat mask;
     cv::Mat mask2;
@@ -109,6 +110,8 @@ class CameraUPServer : public FindBallServer
     CameraUPServer();
     ~CameraUPServer();
     bool find_ball(int type, std::vector<cv::Vec3d> &ball_result,std::vector<cv::Vec3d> &purple_result);
+    void get_color_img(cv::Mat &frame);
+    bool usbcamera_getImage(cv::Mat &frame);
     private:
 };
 
@@ -117,6 +120,8 @@ class CameraJawServer : public FindBallServer
     public:
     CameraJawServer();
     ~CameraJawServer();
+    void get_color_img(cv::Mat &frame);
+    bool usbcamera_getImage(cv::Mat &frame);
     bool find_ball(int type, std::vector<cv::Vec3d> &ball_result,std::vector<cv::Vec3d> &purple_result);
     private:
 };

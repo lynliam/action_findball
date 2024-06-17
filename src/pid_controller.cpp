@@ -27,11 +27,11 @@ action_findball::PIDController::PIDController(float kp, float ki, float kd)
     error[0] = 0;
     error[1] = 0;
     integral = 0;
-    integralMax = 10.3;
-    integralMin = -10.3;
+    integralMax = 5.3;
+    integralMin = -5.3;
     output = 0;
-    outputMax = 1.4;
-    outputMin = -1.4;
+    outputMax = 20;
+    outputMin = -20;
 }
 void action_findball::PIDController::PID_setParam(float kp, float ki, float kd)
 {
@@ -43,6 +43,12 @@ void action_findball::PIDController::PID_MaxMin(float max, float min)
 {
     outputMax = max;
     outputMin = min;
+}
+
+void action_findball::PIDController::PID_InteMaxMin(float max, float min)
+{
+    integralMax = max;
+    integralMin = min;
 }
 
 float action_findball::PIDController::PosePID_Calc(float cur_error_)

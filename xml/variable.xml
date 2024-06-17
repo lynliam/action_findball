@@ -1,23 +1,23 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <pid>
     <PTZ>
-        <kp>0.0026</kp>
-        <ki>0.00001</ki>
-        <kd>0.001</kd>
+        <kp>0.03</kp>
+        <ki>0.0001</ki>
+        <kd>0.1</kd>
     </PTZ>
     <x>
-        <kp>0.0006</kp>
-        <ki>0.00001</ki>
-        <kd>0.001</kd>
+        <kp>0.0035</kp>
+        <ki>0.00005</ki>
+        <kd>0.01</kd>
     </x>
     <y>
-        <kp>0.0003</kp>
-        <ki>0.00000</ki>
+        <kp>0.0001</kp>
+        <ki>0.00001</ki>
         <kd>0.0000</kd>
     </y>
     <w>
-        <kp>2.1</kp>
-        <ki>0.006</ki>
-        <kd>5.0</kd>
+        <kp>0.01</kp>
+        <ki>0.0003</ki>
+        <kd>0.1</kd>
     </w>
 </pid>

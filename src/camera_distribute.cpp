@@ -106,6 +106,7 @@ int camera_distribute()
 
     // 定义正则表达式模式
     std::regex pattern(R"((?:[^:]+): ([^\n]+):\s*\n\s*(\/dev\/[^\n]+)\s*\n\s*(\/dev\/[^\n]+)\s*\n\s*(\/dev\/[^\n]+))");
+    std::regex pattern2(R"((\d+\.\d+-\d+))");
 
     // 使用迭代器遍历匹配结果
     std::sregex_iterator iter(input.begin(), input.end(), pattern);
@@ -122,11 +123,16 @@ int camera_distribute()
         std::cout << "Video Device 1: " << videoDevice1 << std::endl;
         std::cout << "Video Device 2: " << videoDevice2 << std::endl;
 
-        std::string prefix = cameraName.substr(0, cameraName.find(" "));
-
+        //std::string prefix = cameraName.substr(0, cameraName.find(" "));
+        std::smatch match_ID;
+        if (std::regex_search(cameraName, match_ID, pattern2)) {
+            std::cout << "找到的设备ID是: " << match_ID[1] << std::endl;
+        } else {
+            std::cout << "未找到匹配的设备ID。" << std::endl;
+        }
         // 分别修改up和down中的index值
         // 修改up中的index
-        if(prefix == "2K" || prefix == "1080P")
+        if(match_ID[1] == "14.0-1")
         {
             tinyxml2::XMLElement* upElement = cameraElement->FirstChildElement("up");
             if (upElement) {

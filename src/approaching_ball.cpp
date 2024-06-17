@@ -29,10 +29,10 @@ static constexpr char const * node_get_state_topic = "findball/get_state";
 static constexpr char const * node_change_state_topic = "findball/change_state";
 
 // 判定接近球的阈值
-const int x_approach = 250;
+const int x_approach = 240;
 const int y_approach = 310;
 // 判定球将被抓住的阈值，相对于 image_size_half
-const int x_catch = 370;
+const int x_catch = 340;
 const int y_catch = 310;
 // 判定球进入下一区域的阈值
 const int x_next = 300;
@@ -256,7 +256,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 {
                     stay_calm = 0;
                     state_ = (APPROACHINGBALL::APPROACHING);
-                    arm_executor(JointControl_to_pub, JointState_, 0.0, -0.01, 0.832, -0.4);
+                    arm_executor(JointControl_to_pub, JointState_, 0.0, -0.144, 0.552, -0.4);
                 }
                 else {
                     Data_To_Pub.x = 0;
@@ -287,9 +287,10 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 Data_To_Pub.y = - PIDController_x.PosePID_Calc(float(x_approach - tracking_ball.x))*std::sin(JointState_.position[0]);
                 Data_To_Pub.theta = 0;
                 
-                // 限制角度，如果角度大于40度，速度为0
-                if(fabs(JointState_.position[0]) > 0.5)
+                // 限制角度，如果角度大于114度，速度为0
+                if(fabs(JointState_.position[0]) >= 2.0)
                 {
+                    JointControl_to_pub->velocity[0] = 0;
                     state_ = (APPROACHINGBALL::TOFORWARD);
                 }else
                 {
@@ -320,7 +321,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     }
                     else {
                         count_brake = 0;
-                        arm_executor(JointControl_to_pub, JointState_, 0.0, -0.01, 0.832, 0.2);
+                        arm_executor(JointControl_to_pub, JointState_, 0.0, -0.144, 0.552, 0.2);
                         state_ = (APPROACHINGBALL::CATCHING);
                     }
                     RCLCPP_INFO(this->get_logger(), "Ball approached");
@@ -342,7 +343,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 angle_sign_count ++;
                 JointControl_to_pub->effort[0] = 2.0;
                 JointControl_to_pub->velocity[0] = angle_sign_count * 0.1;
-                if(fabs(JointState_.position[0])<0.1) JointControl_to_pub->velocity[0] = 0;
+                if(fabs(JointState_.position[0])<1.57) JointControl_to_pub->velocity[0] = 0;
                 Data_To_Pub.x = 0;
                 Data_To_Pub.y = 0;
                 Data_To_Pub.theta =  - PIDController_w.PosePID_Calc(tracking_ball.y - y_approach);
@@ -377,18 +378,87 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 if(tracking_ball.x - x_catch > 0 && fabs(tracking_ball.y - y_approach) < 80)
                 {
                     RCLCPP_INFO(this->get_logger(), "Catching");
-                    arm_executor(JointControl_to_pub, JointState_, 0.0, 0.08, 0.832, -0.15);
+                    arm_executor(JointControl_to_pub, JointState_, 0.0, -0.144, 0.552, 0.15);
                     JointControl_to_pub->velocity[0] = 0;
                     Data_To_Pub.x = 0;
                     Data_To_Pub.y = 0;
                     Data_To_Pub.theta = 0;
+                    
                     //camera_switch.index = 1;
                     //camera_switch_pub_->publish(camera_switch);
-                    state_ = (APPROACHINGBALL::SUCCEED);
+                    state_ = (APPROACHINGBALL::CATCHING_2);
                 }
 
                 chassis_pub_->publish(Data_To_Pub);
                 up_pub_->publish(*JointControl_to_pub);
+                break;
+            }
+
+            case(APPROACHINGBALL::CATCHING_2):
+            {
+                static int action_step = 0;
+                switch (action_step) {
+                    case 0:
+                    {
+                        if(arm_executor(JointControl_to_pub, JointState_, JointState_.position[0], -0.144, 0.552, 0.13))
+                        {
+                            action_rate.sleep();
+                            action_step = 1;
+                        }
+                        break;
+                    }
+                    case 1:
+                    {
+                        if(arm_executor(JointControl_to_pub, JointState_, JointState_.position[0], -0.288, -0.96, -0.12))
+                        {
+                            action_rate.sleep();
+                            action_step = 2;
+                        }
+                        break;
+                    }
+                    case 2:
+                    {
+                        JointControl_to_pub->effort[0] = 0.0;
+                        if(PTZ_executor(JointControl_to_pub, JointState_, 0.0))
+                        {
+                            action_rate.sleep();
+                            action_step = 3;
+                        }
+                        break;
+                    }
+                    case 3:
+                    {
+                        if(arm_executor(JointControl_to_pub, JointState_, 0.0, -2.9, 1.477, -0.223))
+                        {
+                            action_rate.sleep();
+                            action_step = 4;
+                        }
+                        break;
+                    }
+                    case 4:
+                    {
+                        if(arm_executor(JointControl_to_pub, JointState_, 0.0, -2.9, 1.477, 0.223))
+                        {
+                            action_step = 5;
+                            action_rate.sleep();
+                        }
+                        break;
+                    }
+                    case 5:
+                    {
+                        if(arm_executor(JointControl_to_pub, JointState_, 0.0, 0.009, 0.594, -0.400))
+                        {
+                            action_step = 6;
+                        }
+                        break;
+                    }
+                    case 6:
+                    {
+                        state_ = (APPROACHINGBALL::SUCCEED);
+                        action_step = 0;
+                        break;
+                    }
+                }
                 break;
             }
         }
@@ -458,6 +528,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
 
         if(state_ == (APPROACHINGBALL::SUCCEED))
         {
+            state_ = (APPROACHINGBALL::IDLE);
             break;
         }
         tracking_ball_last = tracking_ball;
@@ -837,6 +908,33 @@ void action_findball::ApproachingBall::get_jointstate_callback(const sensor_msgs
     lock.unlock();
 }
 
+bool action_findball::ApproachingBall::PTZ_executor(const std::shared_ptr<sensor_msgs::msg::JointState> JointControl_to_pub,
+                    const sensor_msgs::msg::JointState &JointState_,
+                    double joint1)
+{
+    rclcpp::Rate loop_rate(20);
+    rclcpp::Rate action_rate(2);
+    JointControl_to_pub->effort[0] = 0.0;
+    int step = (fabs(JointState_.position[0]-joint1)/3.1415926*50.0 >= 1 ? fabs(JointState_.position[0]-joint1)/3.1415926*50:1.0);
+    RCLCPP_INFO(this->get_logger(), "step: %d", step);
+    for(int i = 1;i <= step;i++)
+    {
+        JointControl_to_pub->position[0] = (JointState_.position[0] + (joint1 - JointState_.position[0])/step*i);
+        JointControl_to_pub->header.stamp = this->now();
+        up_pub_->publish(*JointControl_to_pub);
+        loop_rate.sleep();
+    }
+
+    if(fabs(JointState_.position[0]-joint1)<=0.1)
+    {
+        return true;
+    }
+    else{
+        return false;
+    }
+}
+
+
 bool action_findball::ApproachingBall::arm_executor(const std::shared_ptr<sensor_msgs::msg::JointState> JointControl_to_pub,
                     const sensor_msgs::msg::JointState &JointState_,
                         double joint1, double joint2, double joint3, double joint4)
@@ -865,8 +963,7 @@ bool action_findball::ApproachingBall::arm_executor(const std::shared_ptr<sensor
     // action_rate.sleep();
 
     if(fabs(JointState_.position[0]-joint1)<=0.1 &&
-        fabs(JointState_.position[1]-joint2)<=0.3 &&
-            fabs(JointState_.position[2]-joint3)<=0.1)
+        fabs(JointState_.position[1]-joint2)<=0.3)
     {
         return true;
     }

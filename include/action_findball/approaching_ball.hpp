@@ -48,6 +48,11 @@ namespace action_findball {
             bool arm_executor(const std::shared_ptr<sensor_msgs::msg::JointState> JointControl_to_pub,
                                 const sensor_msgs::msg::JointState &JointState_,
                                 double joint1, double joint2, double joint3, double joint4);
+            
+            bool PTZ_executor(const std::shared_ptr<sensor_msgs::msg::JointState> JointControl_to_pub,
+                                const sensor_msgs::msg::JointState &JointState_,
+                                double joint1);
+            
             void catch_ball_execute(const std::shared_ptr<GoalHandleEmptyGoal> goal_handle);
             void put_ball_execute(const std::shared_ptr<GoalHandleEmptyGoal> goal_handle);
             

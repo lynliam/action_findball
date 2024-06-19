@@ -58,7 +58,7 @@ namespace action_findball {
             
             bool up_decision_making(
             std::vector<geometry_msgs::msg::Point32> &ball_info_, 
-            std::vector<geometry_msgs::msg::Point32> &purple_info_, bool is_found_);
+            std::vector<geometry_msgs::msg::Point32> &purple_info_, bool is_found_,int &color_,int reset);
 
             float PTZ_ANGLE_decision_making(geometry_msgs::msg::Point32 &tracking_ball_);
 
@@ -94,6 +94,7 @@ namespace action_findball {
             std::vector<geometry_msgs::msg::Point32> ball_info;
             std::vector<geometry_msgs::msg::Point32> purple_info;
             std_msgs::msg::Header ball_info_header;
+            int color_useful = 0;
             bool is_found;
 
             // 底盘 variable
@@ -119,11 +120,20 @@ namespace action_findball {
             int current_radius;
             int last_radius;
             std::shared_ptr<cv::KalmanFilter> Kalman;
+
+            cv::Vec2f last_measurement_purple;
+            cv::Vec2f current_measurement_purple ;
+            cv::Vec4f last_prediction_purple ;
+            cv::Vec4f current_prediction_purple ;
+            std::shared_ptr<cv::KalmanFilter> Kalman_purple;
+
             geometry_msgs::msg::Point32 tracking_ball;
+            geometry_msgs::msg::Point32 tracking_purple;
 
             //PID 控制器
             PIDController PIDController_PTZ;
             PIDController PIDController_x;
+            PIDController PIDController_x_catch;
             PIDController PIDController_y;
             PIDController PIDController_w;
 

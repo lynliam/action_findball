@@ -6,12 +6,12 @@ def generate_launch_description():
 
     ld = LaunchDescription()
 
-    action_catchball = Node(
-        package='action_findball',
-        executable='catchball_server',
-        name='catchball_server',
-        output='screen', #用于将话题信息打印到屏幕
-    )
+    # action_catchball = Node(
+    #     package='action_findball',
+    #     executable='catchball_server',
+    #     name='catchball_server',
+    #     output='screen', #用于将话题信息打印到屏幕
+    # )
     
     approaching_ball = Node(
         package='action_findball',

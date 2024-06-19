@@ -17,16 +17,16 @@ void onTrackbar(int, void*) {
 
 enum BallType { RED = 0, PURPLE = 1, BLUE = 2 };
 
-cv::Scalar lower_purple = cv::Scalar(142, 67, 41);
-cv::Scalar upper_purple = cv::Scalar(175, 162, 255);
+cv::Scalar lower_purple = cv::Scalar(127, 63, 0);
+cv::Scalar upper_purple = cv::Scalar(175, 167, 255);
 // cv::Scalar lower_blue = cv::Scalar(104, 104, 0);
 // cv::Scalar upper_blue = cv::Scalar(123, 215, 255);
 
 // cv::Scalar lower_blue = cv::Scalar(97, 127, 0);
 // cv::Scalar upper_blue = cv::Scalar(132, 245, 255);
 
-cv::Scalar lower_blue = cv::Scalar(97, 92, 0);
-cv::Scalar upper_blue = cv::Scalar(132, 177, 255);
+cv::Scalar lower_blue = cv::Scalar(100, 92, 0);
+cv::Scalar upper_blue = cv::Scalar(132, 184, 255);
 
 cv::Scalar lower_red = cv::Scalar(157, 100, 0);
 cv::Scalar upper_red = cv::Scalar(190, 251, 255);
@@ -268,7 +268,6 @@ bool CameraUPServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,std
     }
     cv::bitwise_and(color_image, color_image, img_for_purple,mask_for_purple);
 
-
     // cv::GaussianBlur(img_for_purple, img_for_purple, cv::Size(7, 7), 0);
     // cv::GaussianBlur(img_for_target, img_for_target, cv::Size(7, 7), 0);
 
@@ -312,7 +311,7 @@ bool CameraUPServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,std
     // 使用 lambda 表达式进行排序
     std::sort(target_ellipses.begin(), target_ellipses.end(), 
             [](const cv::Vec3d& a, const cv::Vec3d& b) {
-            return a[1] > b[1]; // 按 center.y 降序排序
+            return (600 - a[1])*(600 - a[1])+(400 - a[0])*(400 - a[0]) < (600 - b[1])*(600 - b[1])+(400 - b[0])*(400 - b[0]); // 按 center.y 降序排序
             });
     if(target_ellipses.size() == 0)
         return false;
@@ -333,7 +332,7 @@ bool CameraUPServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,std
     // 使用 lambda 表达式进行排序
     std::sort(purple_ellipses.begin(), purple_ellipses.end(), 
             [](const cv::Vec3d& a, const cv::Vec3d& b) {
-            return a[1] > b[1]; // 按 center.y 降序排序
+            return (600 - a[1])*(600 - a[1])+(400 - a[0])*(400 - a[0]) < (600 - b[1])*(600 - b[1])+(400 - b[0])*(400 - b[0]); // 按 center.y 降序排序
             });
     purple_result.resize(5);
     purple_result.assign(purple_ellipses.begin(), purple_ellipses.end());
@@ -429,7 +428,7 @@ bool CameraJawServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,st
     // 使用 lambda 表达式进行排序
     std::sort(target_ellipses.begin(), target_ellipses.end(), 
             [](const cv::Vec3d& a, const cv::Vec3d& b) {
-            return a[1] > b[1]; // 按 center.y 降序排序
+            return (600 - a[1])*(600 - a[1])+(400 - a[0])*(400 - a[0]) < (600 - b[1])*(600 - b[1])+(400 - b[0])*(400 - b[0]); // 按 center.y 降序排序
             });
     if(target_ellipses.size() == 0)
         return false;
@@ -450,7 +449,7 @@ bool CameraJawServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,st
     // 使用 lambda 表达式进行排序
     std::sort(purple_ellipses.begin(), purple_ellipses.end(), 
             [](const cv::Vec3d& a, const cv::Vec3d& b) {
-            return a[1] > b[1]; // 按 center.y 降序排序
+            return (600 - a[1])*(600 - a[1])+(400 - a[0])*(400 - a[0]) < (600 - b[1])*(600 - b[1])+(400 - b[0])*(400 - b[0]); // 按 center.y 降序排序
             });
     purple_result.resize(5);
     purple_result.assign(purple_ellipses.begin(), purple_ellipses.end());

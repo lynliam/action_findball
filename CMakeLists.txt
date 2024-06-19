@@ -30,6 +30,7 @@ find_package(nav2_util REQUIRED)
 find_package(nav2_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(CURL REQUIRED)
+find_package(Eigen3 REQUIRED)
 include_directories(${CURL_INCLUDE_DIRS})
 
 set(Include_DIR "src/ximgproc/include/opencv2" "src/ximgproc/include" "src/ximgproc/src" "include/action_findball" "include" "src/tinyxml2")
@@ -50,7 +51,7 @@ ament_target_dependencies(spin_to
 
 
 add_executable(publisher_findball src/publisher_findball.cpp ${SRC_FILES} "src/FindBall.cpp" "src/camera_distribute.cpp" "src/tinyxml2/tinyxml2.cpp" "src/calibration.cpp")
-target_link_libraries(publisher_findball ${OpenCV_LIBS} ${CURL_LIBRARIES})
+target_link_libraries(publisher_findball ${OpenCV_LIBS} ${CURL_LIBRARIES} Eigen3::Eigen)
 target_include_directories(publisher_findball PRIVATE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
   $<INSTALL_INTERFACE:include>)
@@ -60,17 +61,17 @@ ament_target_dependencies(publisher_findball
     "lifecycle_msgs"
     "rc2024_interfaces")
 
-add_executable(catchball_server src/action_catch.cpp "src/tinyxml2/tinyxml2.cpp" "src/pid_controller.cpp")
-target_link_libraries(catchball_server ${OpenCV_LIBS})
-ament_target_dependencies(catchball_server
-    "rclcpp"
-    "rclcpp_action"
-    "lifecycle_msgs"
-    "rclcpp_lifecycle"
-    "rc2024_interfaces"
-    "geometry_msgs"
-    "sensor_msgs"
-    "nav_msgs")
+# add_executable(catchball_server src/action_catch.cpp "src/tinyxml2/tinyxml2.cpp" "src/pid_controller.cpp")
+# target_link_libraries(catchball_server ${OpenCV_LIBS})
+# ament_target_dependencies(catchball_server
+#     "rclcpp"
+#     "rclcpp_action"
+#     "lifecycle_msgs"
+#     "rclcpp_lifecycle"
+#     "rc2024_interfaces"
+#     "geometry_msgs"
+#     "sensor_msgs"
+#     "nav_msgs")
 
 add_executable(approaching_ball "src/approaching_ball.cpp" "src/tinyxml2/tinyxml2.cpp" "src/pid_controller.cpp" "src/lifecycle_manager_client.cpp" "src/PTZ_angle.cpp")
 target_link_libraries(approaching_ball ${OpenCV_LIBS} spin_to)
@@ -86,7 +87,6 @@ ament_target_dependencies(approaching_ball
 
 install(TARGETS
   publisher_findball
-  catchball_server
   approaching_ball
   DESTINATION lib/${PROJECT_NAME})
 

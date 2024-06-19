@@ -19,6 +19,7 @@ class PIDController
         void PID_setParam(float kp, float ki, float kd);
         int acquire_PID_variable(std::string variable_name);
         void PID_InteMaxMin(float max, float min);
+        void clear();
         float integralMax;  // 积分上限
         float integralMin;  // 积分下限 用于积分饱和
     private:

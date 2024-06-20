@@ -17,16 +17,22 @@ void onTrackbar(int, void*) {
 
 enum BallType { RED = 0, PURPLE = 1, BLUE = 2 };
 
-cv::Scalar lower_purple = cv::Scalar(127, 63, 0);
-cv::Scalar upper_purple = cv::Scalar(175, 167, 255);
+cv::Scalar lower_purple = cv::Scalar(138, 142, 0);
+cv::Scalar upper_purple = cv::Scalar(191, 235, 255);
 // cv::Scalar lower_blue = cv::Scalar(104, 104, 0);
 // cv::Scalar upper_blue = cv::Scalar(123, 215, 255);
 
 // cv::Scalar lower_blue = cv::Scalar(97, 127, 0);
 // cv::Scalar upper_blue = cv::Scalar(132, 245, 255);
 
-cv::Scalar lower_blue = cv::Scalar(100, 92, 0);
-cv::Scalar upper_blue = cv::Scalar(132, 184, 255);
+// cv::Scalar lower_blue = cv::Scalar(100, 92, 0);
+// cv::Scalar upper_blue = cv::Scalar(132, 184, 255);
+
+// cv::Scalar lower_blue = cv::Scalar(103, 125, 0);
+// cv::Scalar upper_blue = cv::Scalar(124, 233, 255);
+
+cv::Scalar lower_blue = cv::Scalar(92, 147, 0);
+cv::Scalar upper_blue = cv::Scalar(134, 215, 255);
 
 cv::Scalar lower_red = cv::Scalar(157, 100, 0);
 cv::Scalar upper_red = cv::Scalar(190, 251, 255);
@@ -49,6 +55,7 @@ FindBallServer::FindBallServer():   start_time(0.0), current_time(0.0), frame_nu
     std::cout << "FindBallServer created" << std::endl;
     camera_distribute();
     camera_index_read();
+    combinedImage = cv::Mat(cv::Size(800, 600), CV_8UC3);
     cap = std::make_shared<cv::VideoCapture>();
 
     //ball_result = cv::Vec3d(0, 0, 0);
@@ -56,6 +63,20 @@ FindBallServer::FindBallServer():   start_time(0.0), current_time(0.0), frame_nu
     ed = cv::ximgproc::createEdgeDrawing();
     EDParams = std::make_shared<cv::ximgproc::EdgeDrawing::Params>();
     EDinit(ed, EDParams);
+
+    Kalman = std::make_shared<cv::KalmanFilter>(4, 2);
+    Kalman->measurementMatrix = (cv::Mat_<float>(2, 4) << 1, 0, 0, 0, 0, 1, 0, 0);
+    Kalman->transitionMatrix = (cv::Mat_<float>(4, 4) << 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1);
+    Kalman->processNoiseCov = (cv::Mat_<float>(4, 4) << 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1);
+    Kalman->measurementNoiseCov = (cv::Mat_<float>(2, 2) << 0.1, 0, 0, 0.1);
+
+    Kalman_purple = std::make_shared<cv::KalmanFilter>(4, 2);
+    Kalman_purple->measurementMatrix = (cv::Mat_<float>(2, 4) << 1, 0, 0, 0, 0, 1, 0, 0);
+    Kalman_purple->transitionMatrix = (cv::Mat_<float>(4, 4) << 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1);
+    Kalman_purple->processNoiseCov = (cv::Mat_<float>(4, 4) << 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1);
+    Kalman_purple->measurementNoiseCov = (cv::Mat_<float>(2, 2) << 0.1, 0, 0, 0.1);
+
+    situation = Situation::Direct;
 
     #ifdef ENABLE_THRESHOLD
     lowH = 184, lowS = 118, lowV = 150;
@@ -306,7 +327,7 @@ bool CameraUPServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,std
         cv::Point center((int)ellipses_target[i][0], (int)ellipses_target[i][1]);
         cv::Size axes((int)ellipses_target[i][2] + (int)ellipses_target[i][3], (int)ellipses_target[i][2] + (int)ellipses_target[i][4]);
         target_ellipses.push_back(cv::Vec3d(center.x, center.y, axes.width/2.0 + axes.height/2.0));
-        cv::ellipse(color_image, center, axes, ellipses_target[i][5], 0, 360, cv::Scalar(0, 255, 0), 2);
+        //cv::ellipse(color_image, center, axes, ellipses_target[i][5], 0, 360, cv::Scalar(0, 255, 0), 2);
     }
     // 使用 lambda 表达式进行排序
     std::sort(target_ellipses.begin(), target_ellipses.end(), 
@@ -317,7 +338,7 @@ bool CameraUPServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,std
         return false;
     cv::Point center((int)ellipses_target[0][0], (int)ellipses_target[0][1]);
         cv::Size axes((int)ellipses_target[0][2] + (int)ellipses_target[0][3], (int)ellipses_target[0][2] + (int)ellipses_target[0][4]);
-    cv::ellipse(color_image, center, axes, ellipses_target[0][5], 0, 360, cv::Scalar(0, 255, 0), 2);
+    //cv::ellipse(color_image, center, axes, ellipses_target[0][5], 0, 360, cv::Scalar(0, 255, 0), 2);
     ball_result.resize(5);
     ball_result.assign(target_ellipses.begin(), target_ellipses.end());
 
@@ -336,6 +357,181 @@ bool CameraUPServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,std
             });
     purple_result.resize(5);
     purple_result.assign(purple_ellipses.begin(), purple_ellipses.end());
+
+#ifdef UP_DEBUG
+    up_decision_making(ball_result, purple_result, true, situation,0);
+    cv::circle(color_image, cv::Point(tracking_ball.y, tracking_ball.x), tracking_ball.z, cv::Scalar(255, 0, 0), 5);
+    if(situation == Situation::Purple_block)
+    {
+        cv::circle(color_image, cv::Point(tracking_purple.y, tracking_purple.x), tracking_purple.z, cv::Scalar(128, 0, 128), 5);
+        double width = fabs(tracking_ball.y - tracking_purple.y) + tracking_ball.z + tracking_purple.z;
+        double hight = fabs(tracking_ball.x - tracking_purple.x) + tracking_ball.z + tracking_purple.z;
+        double rectCenterX = (tracking_ball.y + tracking_purple.y) / 2.0;
+        double rectCenterY = (tracking_ball.x + tracking_purple.x) / 2.0;
+        cv::Rect_<float> boundingRect( rectCenterX - width/2.0, rectCenterY - hight/2.0, width, hight);
+        cv::rectangle(color_image, boundingRect, cv::Scalar(0, 255, 0), 3);
+    }
+#endif
+    cv::Mat resized_image_color;
+    cv::Mat resized_image_mask;
+    // 将单通道掩码图像转换为三通道图像
+    cv::Mat mask3Channel;
+    
+    cv::resize(color_image, resized_image_color, cv::Size(400, 300), 0, 0,cv::INTER_AREA);
+    cv::resize(mask, resized_image_mask, cv::Size(400, 300), 0, 0,cv::INTER_AREA);
+    cv::cvtColor(resized_image_mask, mask3Channel, cv::COLOR_GRAY2BGR);
+    // 创建一个新的图像，宽度是两张图片的宽度之和，高度不变
+    
+    resized_image_color.copyTo(combinedImage(cv::Rect(0, 0, resized_image_color.cols, resized_image_color.rows)));
+    mask3Channel.copyTo(combinedImage(cv::Rect(resized_image_color.cols, 0, mask3Channel.cols, mask3Channel.rows)));
+
+    return true;
+}
+
+bool FindBallServer::up_decision_making(
+    std::vector<cv::Vec3d> &ball_info_, 
+    std::vector<cv::Vec3d> &purple_info_, bool is_found_, Situation &situation_,int reset)
+{
+    cv::Point3d most_near;
+    static int count_lost = 0;
+    static int init = 0;
+
+    if(is_found_)
+    {
+        count_lost = 0;
+        static int count = 0;
+        most_near.x = ball_info_[0][1];
+        most_near.y = ball_info_[0][0];
+        most_near.z = ball_info_[0][2];
+
+        if(init == 0)
+        {
+            Kalman->statePost = (cv::Mat_<float>(4, 1) << 0, 0, 0, 0);
+            Kalman->errorCovPost = (cv::Mat_<float>(4, 4) <<
+                1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, 0,
+                0, 0, 0, 1);
+            current_measurement = cv::Vec2f(ball_info_[0][0], ball_info_[0][1]);
+            Kalman->correct(cv::Mat(current_measurement));
+            current_prediction = Kalman->predict();
+            tracking_ball.x = current_prediction[1];
+            tracking_ball.y = current_prediction[0];
+            tracking_ball.z = ball_info_[0][2];
+            if((most_near.x-tracking_ball.x)*(most_near.x-tracking_ball.x) + (most_near.y-tracking_ball.y)*(most_near.y-tracking_ball.y) < 25)
+                init = 1;
+        }else {
+            if((most_near.x-tracking_ball.x)*(most_near.x-tracking_ball.x) + (most_near.y-tracking_ball.y)*(most_near.y-tracking_ball.y) < 900 + count*2)
+            {
+                current_measurement = cv::Vec2f(ball_info_[0][0], ball_info_[0][1]);
+                Kalman->correct(cv::Mat(current_measurement));
+                current_prediction = Kalman->predict();
+                tracking_ball.x = current_prediction[1];
+                tracking_ball.y = current_prediction[0];
+                tracking_ball.z = ball_info_[0][2];
+                count = 0;
+            }else
+            {
+                if(count > 50)
+                {
+                std::cout << "No target found!" << std::endl;
+                count = 0;
+                Kalman->statePost = (cv::Mat_<float>(4, 1) << 0, 0, 0, 0);
+                Kalman->errorCovPost = (cv::Mat_<float>(4, 4) <<
+                    1, 0, 0, 0,
+                    0, 1, 0, 0,
+                    0, 0, 1, 0,
+                    0, 0, 0, 1);
+                current_measurement = cv::Vec2f(ball_info_[0][0], ball_info_[0][1]);
+                Kalman->correct(cv::Mat(current_measurement));
+                current_prediction = Kalman->predict();
+                tracking_ball.x = current_prediction[1];
+                tracking_ball.y = current_prediction[0];
+                tracking_ball.z = ball_info_[0][2];
+                }else {
+                    current_measurement = last_measurement;
+                    Kalman->correct(cv::Mat(current_measurement));
+                    current_prediction = Kalman->predict();
+                    tracking_ball.x = current_prediction[1];
+                    tracking_ball.y = current_prediction[0];
+                    tracking_ball.z = ball_info_[0][2];
+                }
+                count++;
+            }
+        }
+
+    if(situation_ == Situation::Direct)
+    {
+        for(auto &purple_ball : purple_info_)
+        {
+            if(purple_ball[1] > tracking_ball.x && fabs(purple_ball[0] - tracking_ball.y) < tracking_ball.z + purple_ball[2] + 50)
+            {
+                Kalman_purple->statePost = (cv::Mat_<float>(4, 1) << 0, 0, 0, 0);
+                Kalman_purple->errorCovPost = (cv::Mat_<float>(4, 4) <<
+                1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, 0,
+                0, 0, 0, 1);
+                current_measurement_purple = cv::Vec2f(purple_ball[0], purple_ball[1]);
+                Kalman_purple->correct(cv::Mat(current_measurement_purple));
+                current_prediction_purple = Kalman_purple->predict();
+                if(purple_ball[1] > tracking_ball.x && fabs(purple_ball[0] - tracking_ball.y) < tracking_ball.z + purple_ball[2] - 10)
+                {
+                    std::cout << "紫球挡住了目标球。。。。。。" << std::endl;
+                    situation_ =Situation::Purple_block;
+                }
+                break;
+            }
+        }
+    }else {
+        static int count_purple = 0;
+        for(size_t i = 0; i< purple_info_.size();i++)
+        {
+            if((purple_info_[i][1]-tracking_purple.x)*(purple_info_[i][1]-tracking_purple.x) + (purple_info_[i][0]-tracking_purple.y)*(purple_info_[i][0]-tracking_purple.y) < 800)
+            {
+                current_measurement_purple = cv::Vec2f(purple_info_[i][0], purple_info_[i][1]);
+                Kalman_purple->correct(cv::Mat(current_measurement_purple));
+                current_prediction_purple = Kalman_purple->predict();
+                tracking_purple.x = current_prediction_purple[1];
+                tracking_purple.y = current_prediction_purple[0];
+                tracking_purple.z = purple_info_[i][2];
+                count_purple = 0;
+                break;
+            }
+            if(i == purple_info_.size()-1)
+            {
+                current_measurement_purple = last_measurement_purple;
+                Kalman_purple->correct(cv::Mat(current_measurement_purple));
+                current_prediction_purple = Kalman_purple->predict();
+                tracking_purple.x = current_prediction_purple[1];
+                tracking_purple.y = current_prediction_purple[0];
+                count_purple ++;
+            }
+            if(count_purple > 20)
+            {
+                count_purple = 0;
+                situation_ = Situation::Direct;
+                std::cout << "回到Direct" << std::endl;
+            }
+        }
+        if(fabs(tracking_purple.y - tracking_ball.y) > tracking_ball.z + tracking_purple.z - 10)
+        {
+            situation_ = Situation::Direct;
+        }
+    }
+
+    }else {
+        std::cout <<  "Ball not found......." << std::endl;
+        return false;
+    }
+    last_prediction = current_prediction;
+    last_measurement = current_measurement;
+    last_radius = current_radius;
+
+    last_measurement_purple = current_measurement_purple;
+    last_prediction_purple = current_prediction_purple;
+
+    std::cout << "target x: " << tracking_ball.x << " y: " << tracking_ball.y << std::endl;
     return true;
 }
 

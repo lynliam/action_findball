@@ -19,6 +19,12 @@ extern cv::Scalar upper_red;
 extern cv::Scalar lower_blue;
 extern cv::Scalar upper_blue;
 
+enum class Situation : int8_t
+{
+    Direct = 0,
+    Purple_block = 1
+};
+
 class FindBallServer
 {
     public:
@@ -34,6 +40,9 @@ class FindBallServer
     bool usbcamera_deinit();
     virtual bool usbcamera_getImage(cv::Mat &frame);
     bool usbcamera_getImage();
+    bool up_decision_making(
+    std::vector<cv::Vec3d> &ball_info_, 
+    std::vector<cv::Vec3d> &purple_info_, bool is_found_, Situation &situation_,int reset);
 
     void EDinit(cv::Ptr<cv::ximgproc::EdgeDrawing> &ed,
     std::shared_ptr<cv::ximgproc::EdgeDrawing::Params> &EDParams);
@@ -46,6 +55,7 @@ class FindBallServer
     //std::shared_ptr<cv::KalmanFilter> Kalman;
 
     cv::Mat color_image;
+    cv::Mat combinedImage;
     protected:
     std::vector<cv::Scalar> lower = {lower_red, lower_purple, lower_blue};
     std::vector<cv::Scalar> upper = {upper_red, upper_purple, upper_blue};
@@ -82,13 +92,26 @@ class FindBallServer
     std::shared_ptr<cv::ximgproc::EdgeDrawing::Params> EDParams;
 
     // Kalman variables
-    // cv::Vec2f last_measurement;
-    // cv::Vec2f current_measurement ;
-    // cv::Vec4f last_prediction ;
-    // cv::Vec4f current_prediction ;
-    // float current_radius;
+    cv::Vec2f last_measurement;
+    cv::Vec2f current_measurement ;
+    cv::Vec4f last_prediction ;
+    cv::Vec4f current_prediction ;
+    int current_radius;
+    int last_radius;
+    std::shared_ptr<cv::KalmanFilter> Kalman;
+
+    cv::Vec2f last_measurement_purple;
+    cv::Vec2f current_measurement_purple ;
+    cv::Vec4f last_prediction_purple ;
+    cv::Vec4f current_prediction_purple ;
+    std::shared_ptr<cv::KalmanFilter> Kalman_purple;
+
+    cv::Point3d tracking_ball;
+    cv::Point3d tracking_purple;
+
+    Situation situation;
     
-        // 计时开始
+    // 计时开始
     double start_time;
     double current_time;
     int frame_number;

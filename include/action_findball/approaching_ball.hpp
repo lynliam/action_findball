@@ -19,10 +19,22 @@
 #include "spin_to_func.hpp"
 #include "State.hpp"
 
+#include "tf2_ros/buffer.h"
+#include "tf2_ros/create_timer_ros.h"
+#include "tf2_ros/transform_listener.h"
+#include <string>
+#include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/twist.hpp"
+#include "tf2/time.h"
+#include "tf2_ros/buffer.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+
 #include <memory>
 #include <opencv2/opencv.hpp>
 #include <rclcpp/qos.hpp>
 #include <std_msgs/msg/detail/header__struct.hpp>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
 
 namespace action_findball {
     using EmptyGoal = rc2024_interfaces::action::PutBall;
@@ -48,17 +60,17 @@ namespace action_findball {
             bool arm_executor(const std::shared_ptr<sensor_msgs::msg::JointState> JointControl_to_pub,
                                 const sensor_msgs::msg::JointState &JointState_,
                                 double joint1, double joint2, double joint3, double joint4);
-            
             bool PTZ_executor(const std::shared_ptr<sensor_msgs::msg::JointState> JointControl_to_pub,
                                 const sensor_msgs::msg::JointState &JointState_,
                                 double joint1);
+            void global_supervisor(const geometry_msgs::msg::PoseStamped tf_current_pose_);
             
             void catch_ball_execute(const std::shared_ptr<GoalHandleEmptyGoal> goal_handle);
             void put_ball_execute(const std::shared_ptr<GoalHandleEmptyGoal> goal_handle);
             
             bool up_decision_making(
             std::vector<geometry_msgs::msg::Point32> &ball_info_, 
-            std::vector<geometry_msgs::msg::Point32> &purple_info_, bool is_found_,int &color_,int reset);
+            std::vector<geometry_msgs::msg::Point32> &purple_info_, bool is_found_,Situation &situation_,int reset);
 
             float PTZ_ANGLE_decision_making(geometry_msgs::msg::Point32 &tracking_ball_);
 
@@ -94,7 +106,6 @@ namespace action_findball {
             std::vector<geometry_msgs::msg::Point32> ball_info;
             std::vector<geometry_msgs::msg::Point32> purple_info;
             std_msgs::msg::Header ball_info_header;
-            int color_useful = 0;
             bool is_found;
 
             // 底盘 variable
@@ -110,6 +121,7 @@ namespace action_findball {
 
             //findball_node state
             bool findball_node_state_;
+            Situation situation;
 
             //kalman
             // Kalman variables
@@ -136,6 +148,11 @@ namespace action_findball {
             PIDController PIDController_x_catch;
             PIDController PIDController_y;
             PIDController PIDController_w;
+
+            // tf Global Position
+            std::shared_ptr<tf2_ros::Buffer> tf_;
+            std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+            geometry_msgs::msg::PoseStamped tf_current_pose;
 
     };
 

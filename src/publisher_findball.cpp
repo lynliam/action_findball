@@ -81,7 +81,6 @@ namespace PublisherFindballCPP {
                     type = 2;
                     if(findball_server_handler->find_ball(type, ball_result, purple_result))
                     {
-
                         ball_info->balls_info.resize(ball_result.size());
                         ball_info->purple_info.resize(purple_result.size());
                         for(size_t i = 0;auto &ball : ball_result)
@@ -117,8 +116,8 @@ namespace PublisherFindballCPP {
                         // ball_info->is_found = false;
                         // publisher_->publish(*ball_info);
                     }
-                    findball_server_handler->get_color_img(color_img);
-                    
+                    //findball_server_handler->get_color_img(color_img);
+                    color_img = findball_server_handler->combinedImage;
                     if(!color_img.empty())
                     {
                         cv::imencode(".jpg", color_img, buf);

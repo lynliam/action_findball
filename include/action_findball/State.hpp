@@ -14,7 +14,9 @@ namespace action_findball {
         FINDING = 7,
         BLOCK = 8,
         CATCHING_PURPLE = 9,
-        SUCCEED = 10
+        BUMP_AWAY = 10,
+        NO_BALL = 11,
+        SUCCEED = 12
     };
 
     enum class Status : int8_t
@@ -22,6 +24,12 @@ namespace action_findball {
         SUCCEEDED = 1,
         FAILED = 2,
         RUNNING = 3,
+    };
+
+    enum class Situation : int8_t
+    {
+        Direct = 0,
+        Purple_block = 1
     };
 
     enum class CATCHBALL {

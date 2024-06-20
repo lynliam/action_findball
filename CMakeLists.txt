@@ -83,6 +83,8 @@ ament_target_dependencies(approaching_ball
     "rc2024_interfaces"
     "geometry_msgs"
     "sensor_msgs"
+    "tf2_ros"
+    "nav2_util"
     "nav_msgs")
 
 install(TARGETS

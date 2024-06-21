@@ -10,6 +10,9 @@ std::regex pattern("\\d+$");
 int camera_up_index = 0;
 int camera_jaw_index = 0;
 
+AreaCoordinate area3;
+double car_length;
+
 int camera_index_read()
 {
     // std::filesystem::path currentPath = std::filesystem::current_path();    
@@ -177,5 +180,68 @@ int camera_distribute()
 
     std::cout << "XML file updated successfully." << std::endl;
 
+    return 0;
+}
+
+
+int efence_read(AreaCoordinate &area)
+{
+    // std::filesystem::path currentPath = std::filesystem::current_path();    
+    // //const std::string package_name = "action_findball";
+    // std::filesystem::path dirPath = currentPath / "xml" / "camera.xml";
+    std::filesystem::path currentPath = std::filesystem::current_path();
+    const std::string package_name = "action_findball";
+    std::filesystem::path dirPath = currentPath / "install" / package_name / "share" / package_name / "xml" / "electronic_fence.xml";// 假设已经构造好基础路径
+
+    tinyxml2::XMLDocument doc;
+    if (doc.LoadFile(dirPath.c_str()) != tinyxml2::XML_SUCCESS)
+    {
+        std::cerr << "Failed to load XML file." << std::endl;
+        return -1;
+    }
+    
+    tinyxml2::XMLElement* cameraElement = doc.FirstChildElement("root");
+    if (cameraElement == nullptr) {
+        std::cerr << "Failed to find 'root' element." << std::endl;
+        return -1;
+    }
+    for (tinyxml2::XMLElement* axisElement_ = cameraElement->FirstChildElement(); axisElement_; axisElement_ = axisElement_->NextSiblingElement())
+    {
+        if(axisElement_->Name() == std::string("car"))
+        {
+            car_length = std::stod(axisElement_->Attribute("b"));
+        }
+        if(axisElement_->Name() == std::string("area3"))
+        {
+        for (tinyxml2::XMLElement* axisElement = axisElement_->FirstChildElement(); axisElement; axisElement = axisElement->NextSiblingElement()) {
+            const char* axisName = axisElement->Name();
+            tinyxml2::XMLElement* index1Element = axisElement->FirstChildElement("x");
+            tinyxml2::XMLElement* index2Element = axisElement->FirstChildElement("y");
+            if (index1Element && index2Element) {
+                if(axisName == std::string("left_up"))
+                {
+                    area.left_up.x = std::stoi(index1Element->GetText());
+                    area.left_up.y = std::stoi(index2Element->GetText());
+                    std::cout << index1Element->GetText() << " " << index2Element->GetText() << std::endl;
+                }else if(axisName == std::string("left_down"))
+                {
+                    area.left_down.x = std::stoi(index1Element->GetText());
+                    area.left_down.y = std::stoi(index2Element->GetText());
+                    std::cout << index1Element->GetText() << " " << index2Element->GetText() << std::endl;
+                }else if(axisName == std::string("right_down"))
+                {
+                    area.right_down.x = std::stoi(index1Element->GetText());
+                    area.right_down.y = std::stoi(index2Element->GetText());
+                    std::cout << index1Element->GetText() << " " << index2Element->GetText() << std::endl;
+                }else if(axisName == std::string("right_up"))
+                {
+                    area.right_up.x = std::stoi(index1Element->GetText());
+                    area.right_up.y = std::stoi(index2Element->GetText());
+                    std::cout << index1Element->GetText() << " " << index2Element->GetText() << std::endl;
+                }
+            }
+        }
+        }
+    }
     return 0;
 }

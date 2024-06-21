@@ -63,7 +63,7 @@ namespace action_findball {
             bool PTZ_executor(const std::shared_ptr<sensor_msgs::msg::JointState> JointControl_to_pub,
                                 const sensor_msgs::msg::JointState &JointState_,
                                 double joint1);
-            void global_supervisor(const geometry_msgs::msg::PoseStamped tf_current_pose_);
+            void global_supervisor(const geometry_msgs::msg::PoseStamped &tf_current_pose_,const nav_msgs::msg::Odometry &ChassisPa_);
             
             void catch_ball_execute(const std::shared_ptr<GoalHandleEmptyGoal> goal_handle);
             void put_ball_execute(const std::shared_ptr<GoalHandleEmptyGoal> goal_handle);
@@ -153,6 +153,8 @@ namespace action_findball {
             std::shared_ptr<tf2_ros::Buffer> tf_;
             std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
             geometry_msgs::msg::PoseStamped tf_current_pose;
+
+            action_findball::Status SupervisorState;
 
     };
 

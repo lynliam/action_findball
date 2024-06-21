@@ -3,6 +3,7 @@
 #include "ximgproc/find_ellipses.hpp"
 #include <iostream>
 #include "calibration.hpp"
+#define UP_DEBUG
 
 //#define ENABLE_THRESHOLD
 //#define ENABLE_IMSHOW
@@ -17,8 +18,8 @@ void onTrackbar(int, void*) {
 
 enum BallType { RED = 0, PURPLE = 1, BLUE = 2 };
 
-cv::Scalar lower_purple = cv::Scalar(138, 142, 0);
-cv::Scalar upper_purple = cv::Scalar(191, 235, 255);
+cv::Scalar lower_purple = cv::Scalar(132, 95, 0);
+cv::Scalar upper_purple = cv::Scalar(165, 219, 255);
 // cv::Scalar lower_blue = cv::Scalar(104, 104, 0);
 // cv::Scalar upper_blue = cv::Scalar(123, 215, 255);
 
@@ -31,8 +32,8 @@ cv::Scalar upper_purple = cv::Scalar(191, 235, 255);
 // cv::Scalar lower_blue = cv::Scalar(103, 125, 0);
 // cv::Scalar upper_blue = cv::Scalar(124, 233, 255);
 
-cv::Scalar lower_blue = cv::Scalar(92, 147, 0);
-cv::Scalar upper_blue = cv::Scalar(134, 215, 255);
+cv::Scalar lower_blue = cv::Scalar(102, 143, 0);
+cv::Scalar upper_blue = cv::Scalar(131, 235, 255);
 
 cv::Scalar lower_red = cv::Scalar(157, 100, 0);
 cv::Scalar upper_red = cv::Scalar(190, 251, 255);
@@ -341,7 +342,8 @@ bool CameraUPServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,std
     //cv::ellipse(color_image, center, axes, ellipses_target[0][5], 0, 360, cv::Scalar(0, 255, 0), 2);
     ball_result.resize(5);
     ball_result.assign(target_ellipses.begin(), target_ellipses.end());
-
+    if(target_ellipses.size() == 0)
+        return false;
     for (size_t i=0; i<ellipses_purple.size(); i++)
     {
         cv::Point center((int)ellipses_purple[i][0], (int)ellipses_purple[i][1]);

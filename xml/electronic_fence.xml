@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<root>
+    <car b="0.44"></car>
+    <area3>
+        <left_up>
+            <x>12.05</x>
+            <y>6</y>
+        </left_up>
+        <left_down>
+            <x>8.05</x>
+            <y>6</y>
+        </left_down>
+        <right_down>
+            <x>8.05</x>
+            <y>0</y>
+        </right_down>
+        <right_up>
+            <x>12.05</x>
+            <y>0</y>
+        </right_up>
+    </area3>
+</root>

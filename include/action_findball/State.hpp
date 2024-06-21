@@ -7,16 +7,19 @@ namespace action_findball {
         IDLE = 0,
         LOOKING = 1,
         TOFORWARD = 2,
-        APPROACHING = 3,
-        CATCHING = 4,
-        CATCHING_2 = 5,
-        LOST = 6,
-        FINDING = 7,
-        BLOCK = 8,
-        CATCHING_PURPLE = 9,
-        BUMP_AWAY = 10,
-        NO_BALL = 11,
-        SUCCEED = 12
+        APPROACHING1 = 3,
+        APPROACHING2 = 4,
+        CATCHING = 5,
+        CATCHING_2 = 6,
+        CATCHING_3 = 7,
+        LOST = 8,
+        FINDING = 9,
+        BLOCK = 10,
+        CATCHING_PURPLE = 11,
+        BUMP_AWAY = 12,
+        NO_BALL = 13,
+        BUCKLE = 14,
+        SUCCEED = 15
     };
 
     enum class Status : int8_t
@@ -24,6 +27,7 @@ namespace action_findball {
         SUCCEEDED = 1,
         FAILED = 2,
         RUNNING = 3,
+        CRASHED = 4
     };
 
     enum class Situation : int8_t

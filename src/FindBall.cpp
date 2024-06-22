@@ -19,7 +19,7 @@ void onTrackbar(int, void*) {
 enum BallType { RED = 0, PURPLE = 1, BLUE = 2 };
 
 cv::Scalar lower_purple = cv::Scalar(132, 95, 0);
-cv::Scalar upper_purple = cv::Scalar(165, 219, 255);
+cv::Scalar upper_purple = cv::Scalar(165, 230, 255);
 // cv::Scalar lower_blue = cv::Scalar(104, 104, 0);
 // cv::Scalar upper_blue = cv::Scalar(123, 215, 255);
 
@@ -32,8 +32,8 @@ cv::Scalar upper_purple = cv::Scalar(165, 219, 255);
 // cv::Scalar lower_blue = cv::Scalar(103, 125, 0);
 // cv::Scalar upper_blue = cv::Scalar(124, 233, 255);
 
-cv::Scalar lower_blue = cv::Scalar(102, 143, 0);
-cv::Scalar upper_blue = cv::Scalar(131, 235, 255);
+cv::Scalar lower_blue = cv::Scalar(102, 155, 0);
+cv::Scalar upper_blue = cv::Scalar(125, 235, 255);
 
 cv::Scalar lower_red = cv::Scalar(157, 100, 0);
 cv::Scalar upper_red = cv::Scalar(190, 251, 255);

@@ -73,7 +73,7 @@ ament_target_dependencies(publisher_findball
 #     "sensor_msgs"
 #     "nav_msgs")
 
-add_executable(approaching_ball "src/approaching_ball.cpp" "src/tinyxml2/tinyxml2.cpp" "src/pid_controller.cpp" "src/lifecycle_manager_client.cpp" "src/PTZ_angle.cpp")
+add_executable(approaching_ball "src/approaching_ball.cpp" "src/tinyxml2/tinyxml2.cpp" "src/pid_controller.cpp" "src/lifecycle_manager_client.cpp" "src/PTZ_angle.cpp" "src/camera_distribute.cpp")
 target_link_libraries(approaching_ball ${OpenCV_LIBS} spin_to)
 ament_target_dependencies(approaching_ball
     "rclcpp"

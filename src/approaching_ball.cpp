@@ -562,7 +562,6 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                         Data_To_Pub.x = 0;
                         Data_To_Pub.y = 0;
                         Data_To_Pub.theta = 0;
-                        
                         action_step = 0;
                     }
 

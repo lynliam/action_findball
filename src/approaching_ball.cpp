@@ -142,6 +142,8 @@ void action_findball::ApproachingBall::handle_accepted(const std::shared_ptr<Goa
 
 void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleEmptyGoal> goal_handle)
 {
+    // 唤醒球位置发布节点
+    change_state_to_active();
     // 初始化PID参数
     PIDController_PTZ.acquire_PID_variable("PTZ");
     PIDController_x.acquire_PID_variable("x");
@@ -152,9 +154,6 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
     PIDController_x.clear();
     PIDController_y.clear();
     PIDController_w.clear();
-
-    // 唤醒球位置发布节点
-    change_state_to_active();
 
     // 动作延时
     rclcpp::Rate loop_rate(120);
@@ -230,18 +229,18 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
     action_rate.sleep();
 
     RCLCPP_INFO(this->get_logger(), "Executing goal, id: %s", goal_handle->get_goal_id().data());
+
+
     while (rclcpp::ok()) {
         if(goal_handle->is_canceling())
         {
             JointControl_to_pub->velocity[0] = 0.0;
             JointControl_to_pub->effort[0] = 0.0;
-            // arm_executor(JointControl_to_pub, JointState_, 0.0, -1.511, -1.308, 0.1);
             arm_executor(JointControl_to_pub, JointState_, 0.0, 0.119, 0.527, -0.400);
             Data_To_Pub.linear.x = 0;
             Data_To_Pub.linear.y = 0;
             Data_To_Pub.angular.z = 0;
             chassis_pub_->publish(Data_To_Pub);
-
             goal_handle->canceled(result);
             RCLCPP_INFO(this->get_logger(), "Goal canceled");
             return;
@@ -279,9 +278,6 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
         RCLCPP_INFO(this->get_logger(), "Situation: %hhd",static_cast<int8_t>(situation));
 
         global_supervisor(tf_current_pose, ChassisPa);
-        //RCLCPP_INFO(this->get_logger(), "frame time: %f", ball_info_header_.stamp.sec + ball_info_header_.stamp.nanosec * 1e-9);
-        //RCLCPP_INFO(this->get_logger(), "now time: %f", this->now().seconds()+float(this->now().nanoseconds()*1e-9));
-        //RCLCPP_INFO(this->get_logger(), "The handle time: %f", (ball_info_header_.stamp.sec + float(ball_info_header_.stamp.nanosec) * 1e-9 - this->now().seconds()-float(this->now().nanoseconds()*1e-9)));
 
         switch (state_) {
             case (APPROACHINGBALL::IDLE):

@@ -3,9 +3,10 @@
 #include "HStateMachine.hpp"
 
 namespace HStateMachine {
+
 // HSM Event Define
-#define HSM_CHASSIS_START        (HSM_START)
-#define HSM_CHASSIS_INIT         (HSM_START+1)
+#define HSM_IDLE        (HSM_START)
+#define HSM_OVER         (HSM_START+1)
 #define HSM_CHASSIS_CORRECTED    (HSM_START+2)   
 #define HSM_CHASSIS_CORRECTING   (HSM_START+3)
 #define HSM_CHASSIS_READY        (HSM_START+4)
@@ -13,17 +14,19 @@ namespace HStateMachine {
 #define HSM_CHASSIS_RUNNING      (HSM_START+6)
 #define HSM_CHASSIS_ERROR        (HSM_START+7)
 
-HSM_EVENT CHASSIS_ON_Handler(HSM *This, HSM_EVENT event, void *param);
-HSM_EVENT CHASSIS_OFF_Handler(HSM *This, HSM_EVENT event, void *param);
-HSM_EVENT CHASSIS_ONReady_Handler(HSM *This, HSM_EVENT event, void *param);
-HSM_EVENT CHASSIS_ONError_Handler(HSM *This, HSM_EVENT event, void *param);
-HSM_EVENT CHASSIS_ONCorrecting_Handler(HSM *This, HSM_EVENT event, void *param);
-HSM_EVENT CHASSIS_ONReadyRunning_Handler(HSM *This, HSM_EVENT event, void *param);
+HSM_EVENT IDLE_Handler(HSM_EVENT event, void *param);
+HSM_EVENT LOOKING_Handler(HSM_EVENT event, void *param);
+HSM_EVENT NO_BALL_Handler(HSM_EVENT event, void *param);
+HSM_EVENT UP_FINDING_Handler(HSM_EVENT event, void *param);
+HSM_EVENT APPROACHING_Handler(HSM_EVENT event, void *param);
+HSM_EVENT CATCHING_Handler(HSM_EVENT event, void *param);
+HSM_EVENT TORWORD_Handler(HSM_EVENT event, void *param);
+HSM_EVENT BACKWARD_Handler(HSM_EVENT event, void *param);
+HSM_EVENT BUMP_UP_Handler(HSM_EVENT event, void *param);
+HSM_EVENT CATCHING_PURPLE_Handler(HSM_EVENT event, void *param);
+HSM_EVENT FAIL_Handler(HSM_EVENT event, void *param);
+HSM_EVENT SUCCESS_Handler(HSM_EVENT event, void *param);
 
-void HSM_CHASSIS_Init(swChassis_t *This, char *name);
-void HSM_CHASSIS_Run(swChassis_t *This, HSM_EVENT event, void *param);
-
-extern swChassis_t mychassis;
 extern HSM_EVENT Next_Event;
 
 } // namespace HStateMachine

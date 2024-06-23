@@ -247,9 +247,9 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
             return;
         }
 
-        // if (!nav2_util::getCurrentPose(tf_current_pose, *tf_, "map", "base_link", 0.1))
-        // RCLCPP_ERROR(this->get_logger(),
-        // "Current robot pose is not available.\n\n\n");
+        if (!nav2_util::getCurrentPose(tf_current_pose, *tf_, "map", "base_link", 0.1))
+        RCLCPP_ERROR(this->get_logger(),
+        "Current robot pose is not available.\n\n\n");
 
         JointState_.position.clear();
         JointState_.position.resize(4);
@@ -278,7 +278,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
             up_decision_making(ball_info_, purple_info_, is_found_, situation,1);
         RCLCPP_INFO(this->get_logger(), "Situation: %hhd",static_cast<int8_t>(situation));
 
-        //global_supervisor(tf_current_pose, ChassisPa);
+        global_supervisor(tf_current_pose, ChassisPa);
         //RCLCPP_INFO(this->get_logger(), "frame time: %f", ball_info_header_.stamp.sec + ball_info_header_.stamp.nanosec * 1e-9);
         //RCLCPP_INFO(this->get_logger(), "now time: %f", this->now().seconds()+float(this->now().nanoseconds()*1e-9));
         //RCLCPP_INFO(this->get_logger(), "The handle time: %f", (ball_info_header_.stamp.sec + float(ball_info_header_.stamp.nanosec) * 1e-9 - this->now().seconds()-float(this->now().nanoseconds()*1e-9)));
@@ -295,8 +295,8 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     stay_calm = 0;
                     JointControl_to_pub->effort[0] = 0.0;
                     
-                    //arm_executor(JointControl_to_pub, JointState_, 0.0, 0.119, 0.527, -0.4);
-                    state_ = (APPROACHINGBALL::APPROACHING2);
+                    arm_executor(JointControl_to_pub, JointState_, 0.0, 0.119, 0.527, -0.4);
+                    state_ = (APPROACHINGBALL::APPROACHING1);
                     // if(situation == Situation::Direct)
                     // {
                     //     /*-------*/
@@ -762,26 +762,6 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                         action_step = 3;
                         break;
                     }
-                    // case 3:
-                    // {
-                    //     arm_executor(JointControl_to_pub, JointState_, 0.0, -2.6, 1.477, -0.2);
-                    //     action_rate.sleep();
-                    //     action_step = 2;
-                    //     break;
-                    // }
-                    // case 4:
-                    // {
-                    //     arm_executor(JointControl_to_pub, JointState_, 0.0, -2.6, 1.477, 0.15);
-                    //     action_step = 5;
-                    //     action_rate.sleep();
-                    //     break;
-                    // }
-                    // case 5:
-                    // {
-                    //     arm_executor(JointControl_to_pub, JointState_, 0.0, 0.119, 0.527, -0.400);
-                    //     action_step = 6;
-                    //     break;
-                    // }
                     case 3:
                     {
                         state_ = (APPROACHINGBALL::SUCCEED);
@@ -1118,11 +1098,6 @@ void action_findball::ApproachingBall::catch_ball_execute(const std::shared_ptr<
     }
 }
 
-void action_findball::ApproachingBall::put_ball_execute(const std::shared_ptr<GoalHandleEmptyGoal> goal_handle)
-{
-}
-
-
 void action_findball::ApproachingBall::ballinfo_callback(const rc2024_interfaces::msg::BallInfo::SharedPtr msg)
 {
     ball_info.clear();
@@ -1142,13 +1117,6 @@ void action_findball::ApproachingBall::get_pose_callback(const nav_msgs::msg::Od
     std::unique_lock<std::mutex> lock(variable_mutex__);
     ChassisPa= *msg;
 }
-
-// void action_findball::ApproachingBall::car_brake(geometry_msgs::msg::Pose2D &Data_To_Pub_)
-// {
-//     Data_To_Pub_.x = 0;
-//     Data_To_Pub_.y = 0;
-//     Data_To_Pub_.theta = 0;
-// }
 
 bool action_findball::ApproachingBall::up_decision_making(
     std::vector<geometry_msgs::msg::Point32> &ball_info_, 
@@ -1529,7 +1497,6 @@ bool action_findball::ApproachingBall::PTZ_executor(const std::shared_ptr<sensor
     }
 }
 
-
 bool action_findball::ApproachingBall::arm_executor(const std::shared_ptr<sensor_msgs::msg::JointState> JointControl_to_pub,
                     const sensor_msgs::msg::JointState &JointState_,
                         double joint1, double joint2, double joint3, double joint4)
@@ -1664,3 +1631,24 @@ int main(int argc, char * argv[])
     }
 
 */
+
+                    // case 3:
+                    // {
+                    //     arm_executor(JointControl_to_pub, JointState_, 0.0, -2.6, 1.477, -0.2);
+                    //     action_rate.sleep();
+                    //     action_step = 2;
+                    //     break;
+                    // }
+                    // case 4:
+                    // {
+                    //     arm_executor(JointControl_to_pub, JointState_, 0.0, -2.6, 1.477, 0.15);
+                    //     action_step = 5;
+                    //     action_rate.sleep();
+                    //     break;
+                    // }
+                    // case 5:
+                    // {
+                    //     arm_executor(JointControl_to_pub, JointState_, 0.0, 0.119, 0.527, -0.400);
+                    //     action_step = 6;
+                    //     break;
+                    // }

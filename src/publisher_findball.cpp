@@ -71,13 +71,14 @@ namespace PublisherFindballCPP {
                     auto type = this->get_parameter("balltype").as_int();
                     std::vector<cv::Vec3d> ball_result;
                     std::vector<cv::Vec3d> purple_result;
-                    lock_flag.lock();
-                    int camera_flag_ = camera_flag;
-                    lock_flag.unlock();
-                    if(camera_flag_ == 0)
-                        findball_server_handler = findball_server_handler_up;
-                    else if(camera_flag_ == 1)
-                        findball_server_handler = findball_server_handler_jaw;
+                    // lock_flag.lock();
+                    // int camera_flag_ = 0;
+                    // lock_flag.unlock();
+                    findball_server_handler = findball_server_handler_up;
+                    // if(camera_flag_ == 0)
+                        
+                    // else if(camera_flag_ == 1)
+                    //     findball_server_handler = findball_server_handler_jaw;
                     type = 2;
                     if(findball_server_handler->find_ball(type, ball_result, purple_result))
                     {

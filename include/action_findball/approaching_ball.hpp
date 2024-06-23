@@ -81,7 +81,7 @@ namespace action_findball {
             std::shared_ptr<rclcpp::QoS> qos_profile;
 
             // 底盘
-            rclcpp::Publisher<geometry_msgs::msg::Pose2D>::SharedPtr chassis_pub_;
+            rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr chassis_pub_;
             rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr chassis_sub_;
             rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr up_pub_;
             rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr up_sub_;

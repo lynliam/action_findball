@@ -133,19 +133,19 @@ namespace PublisherFindballCPP {
                         // 检查错误码
                         if(res != CURLE_OK) {
                             if(res == CURLE_OPERATION_TIMEDOUT) {
-                                std::cerr << "操作超时，丢帧处理" << std::endl;
+                                //std::cerr << "操作超时，丢帧处理" << std::endl;
                             } else if(res == CURLE_COULDNT_CONNECT) {
-                                std::cerr << "无法连接到服务器，服务端是不是还没开起来?" << std::endl;
+                                //std::cerr << "无法连接到服务器，服务端是不是还没开起来?" << std::endl;
                             } else {
-                                std::cerr << "请求失败: " << curl_easy_strerror(res) << std::endl;
+                                //std::cerr << "请求失败: " << curl_easy_strerror(res) << std::endl;
                             }
                         } else {
                             // 检查HTTP响应码
                             long response_code;
                             curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
-                            std::cout << "HTTP响应码: " << response_code << std::endl;
+                            //std::cout << "HTTP响应码: " << response_code << std::endl;
                             if(response_code != 200) {
-                                std::cerr << "接口名字是不是写错了" << std::endl;
+                                //std::cerr << "接口名字是不是写错了" << std::endl;
                             }
                         }
                     }

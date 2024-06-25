@@ -19,8 +19,9 @@ namespace action_findball {
         BUMP_AWAY = 12,
         NO_BALL = 13,
         BUCKLE = 14,
-        SUCCEED = 15,
-        BACKWARD = 16
+        BACKWARD = 15,
+        SUCCEED = 16,
+        FAIL = 17
     };
 
     enum class Status : int8_t

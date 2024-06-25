@@ -37,7 +37,7 @@
 #include <tf2_ros/transform_listener.h>
 
 namespace action_findball {
-    using EmptyGoal = rc2024_interfaces::action::PutBall;
+    using EmptyGoal = rc2024_interfaces::action::CatchBall;
     using GoalHandleEmptyGoal = rclcpp_action::ServerGoalHandle<EmptyGoal>;
 
     class ApproachingBall : public LifecycleManagerClient
@@ -64,6 +64,7 @@ namespace action_findball {
                                 const sensor_msgs::msg::JointState &JointState_,
                                 double joint1);
             void global_supervisor(const geometry_msgs::msg::PoseStamped &tf_current_pose_,const nav_msgs::msg::Odometry &ChassisPa_);
+            bool check_position(const geometry_msgs::msg::PoseStamped &tf_current_pose_, float x,float y, float w);
             
             void catch_ball_execute(const std::shared_ptr<GoalHandleEmptyGoal> goal_handle);
             void put_ball_execute(const std::shared_ptr<GoalHandleEmptyGoal> goal_handle);

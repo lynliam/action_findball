@@ -105,7 +105,7 @@ namespace PublisherFindballCPP {
                         publisher_->publish(*ball_info);
                     }
                     else {
-                        RCLCPP_INFO(this->get_logger(), "Ball not found");
+                        // RCLCPP_INFO(this->get_logger(), "Ball not found");
 
                         // for(auto &purple : purple_result)
                         // {
@@ -114,8 +114,8 @@ namespace PublisherFindballCPP {
                         //     ball_info->purple_info[0].z = purple[2];
                         // }
                         // ball_info->type = 10;
-                        // ball_info->is_found = false;
-                        // publisher_->publish(*ball_info);
+                        ball_info->is_found = false;
+                        publisher_->publish(*ball_info);
                     }
                     //findball_server_handler->get_color_img(color_img);
                     color_img = findball_server_handler->combinedImage;

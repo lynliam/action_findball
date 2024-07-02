@@ -157,6 +157,8 @@ namespace action_findball {
 
             action_findball::Status SupervisorState;
 
+            std::string start_side;
+
     };
 
 } // namespace action_findball

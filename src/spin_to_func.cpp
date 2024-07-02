@@ -31,15 +31,15 @@ action_findball::SpinTo::SpinTo()
 
 void action_findball::SpinTo::onConfigure()
 {
-    simulate_ahead_time_ = 1.0;
-    max_rotational_vel_ = 1.2;
-    min_rotational_vel_ = 0.1;
+    simulate_ahead_time_ = 2.0;
+    max_rotational_vel_ = 1.25;
+    min_rotational_vel_ = 0.15;
     rotational_acc_lim_ = 0.3;
 }
 
-action_findball::Status action_findball::SpinTo::onRun(float command,rclcpp::Duration time_allowance,nav_msgs::msg::Odometry current_pose)
+action_findball::Status action_findball::SpinTo::onRun(float command,rclcpp::Duration time_allowance, geometry_msgs::msg::PoseStamped current_pose)
 {
-    prev_yaw_ = tf2::getYaw(current_pose.pose.pose.orientation);
+    prev_yaw_ = tf2::getYaw(current_pose.pose.orientation);
     relative_yaw_ = 0.0;
     cmd_yaw_ = command;
     while(fabs(cmd_yaw_)>=M_PI)
@@ -56,7 +56,7 @@ action_findball::Status action_findball::SpinTo::onRun(float command,rclcpp::Dur
     return Status::RUNNING;
 }
 
-action_findball::Status action_findball::SpinTo::onCycleUpdate(nav_msgs::msg::Odometry current_pose)
+action_findball::Status action_findball::SpinTo::onCycleUpdate(geometry_msgs::msg::PoseStamped current_pose)
 {
     rclcpp::Duration time_remaining = end_time_ - time_node->get_clock()->now();
     RCLCPP_INFO(time_node->get_logger(), "time_remaining %f",time_remaining.seconds());
@@ -68,7 +68,7 @@ action_findball::Status action_findball::SpinTo::onCycleUpdate(nav_msgs::msg::Od
         return Status::FAILED;
     }
 
-    const double current_yaw = tf2::getYaw(current_pose.pose.pose.orientation);
+    const double current_yaw = tf2::getYaw(current_pose.pose.orientation);
     RCLCPP_INFO(time_node->get_logger(), "current_yaw %f",current_yaw);
 
     double delta_yaw = current_yaw - prev_yaw_; // 上周期转过的角度
@@ -108,9 +108,9 @@ action_findball::Status action_findball::SpinTo::onCycleUpdate(nav_msgs::msg::Od
     cmd_vel->theta = copysign(vel, remaining_yaw);
 
     geometry_msgs::msg::Pose2D pose2d;
-    pose2d.x = current_pose.pose.pose.position.x;
-    pose2d.y = current_pose.pose.pose.position.y;
-    pose2d.theta = tf2::getYaw(current_pose.pose.pose.orientation);
+    pose2d.x = current_pose.pose.position.x;
+    pose2d.y = current_pose.pose.position.y;
+    pose2d.theta = tf2::getYaw(current_pose.pose.orientation);
     vel_pub_->publish(std::move(cmd_vel));
 
     return Status::RUNNING;

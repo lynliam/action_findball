@@ -2,6 +2,7 @@
 #define CAMERA_DISTRIBUTE_HPP
 
 #include "tinyxml2.h"
+#include <string>
 
 class AreaCoordinate {
     struct Coordinate {
@@ -9,10 +10,15 @@ class AreaCoordinate {
     int y; // Y坐标
 };
     public:
-    Coordinate left_up; // 左上角坐标
-    Coordinate left_down; // 左下角坐标
-    Coordinate right_down; // 右下角坐标
-    Coordinate right_up; // 右上角坐标
+    Coordinate lleft_up; // 左上角坐标
+    Coordinate lleft_down; // 左下角坐标
+    Coordinate lright_down; // 右下角坐标
+    Coordinate lright_up; // 右上角坐标
+
+    Coordinate rleft_up; // 左上角坐标
+    Coordinate rleft_down; // 左下角坐标
+    Coordinate rright_down; // 右下角坐标
+    Coordinate rright_up; // 右上角坐标
 
     AreaCoordinate() {
         efence_read(*this);

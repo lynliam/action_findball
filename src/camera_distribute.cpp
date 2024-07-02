@@ -186,9 +186,6 @@ int camera_distribute()
 
 int efence_read(AreaCoordinate &area)
 {
-    // std::filesystem::path currentPath = std::filesystem::current_path();    
-    // //const std::string package_name = "action_findball";
-    // std::filesystem::path dirPath = currentPath / "xml" / "camera.xml";
     std::filesystem::path currentPath = std::filesystem::current_path();
     const std::string package_name = "action_findball";
     std::filesystem::path dirPath = currentPath / "install" / package_name / "share" / package_name / "xml" / "electronic_fence.xml";// 假设已经构造好基础路径
@@ -211,8 +208,9 @@ int efence_read(AreaCoordinate &area)
         {
             car_length = std::stod(axisElement_->Attribute("b"));
         }
-        if(axisElement_->Name() == std::string("area3"))
+        if(axisElement_->Name() == std::string("area3_left"))
         {
+            std::cout << "area3_left" << std::endl;
         for (tinyxml2::XMLElement* axisElement = axisElement_->FirstChildElement(); axisElement; axisElement = axisElement->NextSiblingElement()) {
             const char* axisName = axisElement->Name();
             tinyxml2::XMLElement* index1Element = axisElement->FirstChildElement("x");
@@ -220,23 +218,56 @@ int efence_read(AreaCoordinate &area)
             if (index1Element && index2Element) {
                 if(axisName == std::string("left_up"))
                 {
-                    area.left_up.x = std::stoi(index1Element->GetText());
-                    area.left_up.y = std::stoi(index2Element->GetText());
+                    area.lleft_up.x = std::stoi(index1Element->GetText());
+                    area.lleft_up.y = std::stoi(index2Element->GetText());
                     std::cout << index1Element->GetText() << " " << index2Element->GetText() << std::endl;
                 }else if(axisName == std::string("left_down"))
                 {
-                    area.left_down.x = std::stoi(index1Element->GetText());
-                    area.left_down.y = std::stoi(index2Element->GetText());
+                    area.lleft_down.x = std::stoi(index1Element->GetText());
+                    area.lleft_down.y = std::stoi(index2Element->GetText());
                     std::cout << index1Element->GetText() << " " << index2Element->GetText() << std::endl;
                 }else if(axisName == std::string("right_down"))
                 {
-                    area.right_down.x = std::stoi(index1Element->GetText());
-                    area.right_down.y = std::stoi(index2Element->GetText());
+                    area.lright_down.x = std::stoi(index1Element->GetText());
+                    area.lright_down.y = std::stoi(index2Element->GetText());
                     std::cout << index1Element->GetText() << " " << index2Element->GetText() << std::endl;
                 }else if(axisName == std::string("right_up"))
                 {
-                    area.right_up.x = std::stoi(index1Element->GetText());
-                    area.right_up.y = std::stoi(index2Element->GetText());
+                    area.lright_up.x = std::stoi(index1Element->GetText());
+                    area.lright_up.y = std::stoi(index2Element->GetText());
+                    std::cout << index1Element->GetText() << " " << index2Element->GetText() << std::endl;
+                }
+            }
+        }
+        }
+        
+        if(axisElement_->Name() == std::string("area3_right"))
+        {
+            std::cout << "area3_right" << std::endl;
+        for (tinyxml2::XMLElement* axisElement = axisElement_->FirstChildElement(); axisElement; axisElement = axisElement->NextSiblingElement()) {
+            const char* axisName = axisElement->Name();
+            tinyxml2::XMLElement* index1Element = axisElement->FirstChildElement("x");
+            tinyxml2::XMLElement* index2Element = axisElement->FirstChildElement("y");
+            if (index1Element && index2Element) {
+                if(axisName == std::string("left_up"))
+                {
+                    area.rleft_up.x = std::stoi(index1Element->GetText());
+                    area.rleft_up.y = std::stoi(index2Element->GetText());
+                    std::cout << index1Element->GetText() << " " << index2Element->GetText() << std::endl;
+                }else if(axisName == std::string("left_down"))
+                {
+                    area.rleft_down.x = std::stoi(index1Element->GetText());
+                    area.rleft_down.y = std::stoi(index2Element->GetText());
+                    std::cout << index1Element->GetText() << " " << index2Element->GetText() << std::endl;
+                }else if(axisName == std::string("right_down"))
+                {
+                    area.rright_down.x = std::stoi(index1Element->GetText());
+                    area.rright_down.y = std::stoi(index2Element->GetText());
+                    std::cout << index1Element->GetText() << " " << index2Element->GetText() << std::endl;
+                }else if(axisName == std::string("right_up"))
+                {
+                    area.rright_up.x = std::stoi(index1Element->GetText());
+                    area.rright_up.y = std::stoi(index2Element->GetText());
                     std::cout << index1Element->GetText() << " " << index2Element->GetText() << std::endl;
                 }
             }

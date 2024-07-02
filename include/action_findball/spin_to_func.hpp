@@ -16,9 +16,9 @@ class SpinTo
     public:
         SpinTo();
 
-        Status onRun(float command,rclcpp::Duration time_allowance,nav_msgs::msg::Odometry current_pose);
+        Status onRun(float command,rclcpp::Duration time_allowance, geometry_msgs::msg::PoseStamped current_pose);
         void onConfigure();
-        Status onCycleUpdate(nav_msgs::msg::Odometry current_pose);
+        Status onCycleUpdate(geometry_msgs::msg::PoseStamped current_pose);
     private:
         rclcpp::Node::SharedPtr time_node;
         rclcpp::Publisher<geometry_msgs::msg::Pose2D>::SharedPtr vel_pub_;

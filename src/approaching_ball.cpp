@@ -52,7 +52,7 @@ action_findball::ApproachingBall::ApproachingBall(const std::string & node_name,
     findball_node_state_(false),
     PIDController_PTZ(0, 0, 0),
     PIDController_x(0.0004,0.00001,0.001),             
-    PIDController_x_catch(0.0022,0.0002,0.01),
+    PIDController_x_catch(0.0016,0.0002,0.01),
     PIDController_y(0.0006,0.00001,0.0001),
     PIDController_w(1.3,0.02,0.06)
 {
@@ -812,7 +812,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                         state_angle_direction = 2;
                 }
 
-                //向右旋转云台 45 度
+                //向右旋转云台 90 度
                 else if(state_angle_direction == 2)
                 {
                     right_ball_count = ball_info_.size();

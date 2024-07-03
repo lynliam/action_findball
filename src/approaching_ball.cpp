@@ -497,6 +497,12 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 if(spin_return == Status::SUCCEEDED)
                 {
                     RCLCPP_INFO(this->get_logger(), "spin_return == Status::SUCCEEDED");
+                    if(fabs(JointState_.position[0]) >= 1.4)
+                    {
+                        // test  
+                        JointControl_to_pub->effort[0] = 10.0;
+                        JointControl_to_pub->velocity[0] = (JointState_.position[0] > 0 ? -1.0 : 1.0) * 0.4;
+                    }
                     JointControl_to_pub->position[0] = 1.0;
                     JointControl_to_pub->position[0] = 0;
                     JointControl_to_pub->velocity[0] = 0;
@@ -558,7 +564,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 // }
 
                 // Exit State
-                if(this->now() - state_entry_time > rclcpp::Duration::from_seconds(20))
+                if(this->now() - state_entry_time > rclcpp::Duration::from_seconds(15))
                 {
                     stay_calm = 0;
                     angle_sign = 0;
@@ -699,6 +705,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     }
                     case 2:
                     {
+                        static int count_for_this_state = 0;
                         static int count_for_result = 0;
                         if(count_for_result <= 4)
                         {
@@ -728,6 +735,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                         }
                         else if(count_for_result >5)
                         {
+                            count_for_this_state ++;
                             count_for_result = 0;
                             action_step = 0;
                             reset = 0;
@@ -743,6 +751,11 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                             state_ = APPROACHINGBALL::CATCHING;
                             // reset = 0;
                             // action_rate.sleep();
+                            if(count_for_this_state >=3)
+                            {
+                                count_for_this_state = 0;
+                                action_rate.sleep();
+                            }
                             RCLCPP_INFO(this->get_logger(),"else count :%d", count_for_result);
                         }
                         count_for_result ++;
@@ -814,7 +827,6 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 Data_To_Pub.linear.y = 0;
                 Data_To_Pub.angular.z = 0;
                 RCLCPP_INFO(this->get_logger(), "Waiting..... for global planner to complete the path");
-
                 break;
             }
 

@@ -21,13 +21,14 @@ class SpinTo
         Status onCycleUpdate(geometry_msgs::msg::PoseStamped current_pose);
     private:
         rclcpp::Node::SharedPtr time_node;
-        rclcpp::Publisher<geometry_msgs::msg::Pose2D>::SharedPtr vel_pub_;
+        rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr vel_pub_;
         void stopRobot();
         double min_rotational_vel_;
         double max_rotational_vel_;
         double rotational_acc_lim_;
         double cmd_yaw_;
         double prev_yaw_;
+        
         double relative_yaw_;
         double simulate_ahead_time_;
         rclcpp::Duration command_time_allowance_{0, 0};

@@ -29,7 +29,8 @@ namespace action_findball {
         SUCCEEDED = 1,
         FAILED = 2,
         RUNNING = 3,
-        CRASHED = 4
+        CRASHED = 4,
+        IDLE = 5
     };
 
     enum class Situation : int8_t

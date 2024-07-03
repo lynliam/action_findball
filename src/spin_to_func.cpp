@@ -8,10 +8,10 @@
 // Stop the robot with a commanded velocity
 void action_findball::SpinTo::stopRobot()
 {
-    auto cmd_vel = std::make_unique<geometry_msgs::msg::Pose2D>();
-    cmd_vel->x = 0.0;
-    cmd_vel->y = 0.0;
-    cmd_vel->theta = 0.0;
+    auto cmd_vel = std::make_unique<geometry_msgs::msg::Twist>();
+    cmd_vel->linear.x = 0.0;
+    cmd_vel->linear.y = 0.0;
+    cmd_vel->angular.z = 0.0;
     vel_pub_->publish(std::move(cmd_vel));
 }
 
@@ -25,7 +25,7 @@ action_findball::SpinTo::SpinTo()
     simulate_ahead_time_(0.0)
 {
     time_node = rclcpp::Node::make_shared("spin_to_time_node");
-    vel_pub_ = time_node->create_publisher<geometry_msgs::msg::Pose2D>("/car/cmd_vel", 5);
+    vel_pub_ = time_node->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 2);
     onConfigure();
 }
 
@@ -33,14 +33,15 @@ void action_findball::SpinTo::onConfigure()
 {
     simulate_ahead_time_ = 2.0;
     max_rotational_vel_ = 1.25;
-    min_rotational_vel_ = 0.15;
+    min_rotational_vel_ = 0.3;
     rotational_acc_lim_ = 0.3;
 }
 
 action_findball::Status action_findball::SpinTo::onRun(float command,rclcpp::Duration time_allowance, geometry_msgs::msg::PoseStamped current_pose)
 {
+
     prev_yaw_ = tf2::getYaw(current_pose.pose.orientation);
-    relative_yaw_ = 0.0;
+    // relative_yaw_ = 0.0;
     cmd_yaw_ = command;
     while(fabs(cmd_yaw_)>=M_PI)
     {
@@ -76,17 +77,17 @@ action_findball::Status action_findball::SpinTo::onCycleUpdate(geometry_msgs::ms
         delta_yaw = copysign(2 * M_PI - abs(delta_yaw), prev_yaw_);
     }
 
-    relative_yaw_ += delta_yaw; // 总共转过的角度
+    // relative_yaw_ += delta_yaw; // 总共转过的角度
     prev_yaw_ = current_yaw; 
 
-    double remaining_yaw = cmd_yaw_ - current_yaw; // 剩余需要转的角度
-    auto cmd_vel = std::make_unique<geometry_msgs::msg::Pose2D>();
-    cmd_vel->x = 0.0;
-    cmd_vel->y = 0.0;
-    RCLCPP_INFO(time_node->get_logger(), "remaining_yaw %2f",remaining_yaw);
-    if (abs(remaining_yaw) < 0.05) {
+     cmd_yaw_ = cmd_yaw_ - delta_yaw; // 剩余需要转的角度
+    auto cmd_vel = std::make_unique<geometry_msgs::msg::Twist>();
+    cmd_vel->linear.x = 0.0;
+    cmd_vel->linear.y = 0.0;
+    RCLCPP_INFO(time_node->get_logger(), "remaining_yaw %2f",cmd_yaw_);
+    if (abs(cmd_yaw_) < 0.1) {
         //stopRobot();
-        //RCLCPP_INFO(logger_, "Stopped spinning ");
+        RCLCPP_INFO(time_node->get_logger(), "Stopped spinning ");
         if(abs(delta_yaw)<1e-3)
         {
             RCLCPP_INFO(time_node->get_logger(), "Reached goal on %.2f.",current_yaw);
@@ -102,10 +103,10 @@ action_findball::Status action_findball::SpinTo::onCycleUpdate(geometry_msgs::ms
             return Status::RUNNING;
         }
     }
-    double vel = sqrt(2 * rotational_acc_lim_ * abs(remaining_yaw));
+    double vel = sqrt(2 * rotational_acc_lim_ * abs(cmd_yaw_));
     vel = std::min(std::max(vel, min_rotational_vel_), max_rotational_vel_);
 
-    cmd_vel->theta = copysign(vel, remaining_yaw);
+    cmd_vel->angular.z = copysign(vel, cmd_yaw_);
 
     geometry_msgs::msg::Pose2D pose2d;
     pose2d.x = current_pose.pose.position.x;

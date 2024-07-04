@@ -54,7 +54,9 @@ action_findball::ApproachingBall::ApproachingBall(const std::string & node_name,
     PIDController_x(0.0004,0.00001,0.001),             
     PIDController_x_catch(0.0016,0.0008,0.01),
     PIDController_y(0.0006,0.00001,0.0001),
-    PIDController_w(1.3,0.02,0.06)
+    PIDController_w(1.3,0.02,0.06),
+
+    left_ball_count(0), right_ball_count(0), toward(TOWARD::FRONT)
 {
     RCLCPP_INFO(this->get_logger(), "ApproachingBall node init");
     spin_to_func = std::make_shared<SpinTo>();
@@ -82,6 +84,7 @@ action_findball::ApproachingBall::ApproachingBall(const std::string & node_name,
     chassis_sub_ = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 2, std::bind(&ApproachingBall::get_pose_callback,this,std::placeholders::_1));
     up_pub_ = this->create_publisher<sensor_msgs::msg::JointState>("/car/up_cmd", 2);
     up_sub_ = this->create_subscription<sensor_msgs::msg::JointState>("/car/up_fdbk", *qos_profile, std::bind(&ApproachingBall::get_jointstate_callback,this,std::placeholders::_1));
+    goal_update_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("goal_update", 5);
     //camera_switch_pub_= this->create_publisher<rc2024_interfaces::msg::CameraSwitch>("camera_switch", 2);
 
     Kalman = std::make_shared<cv::KalmanFilter>(4, 2);
@@ -114,7 +117,6 @@ action_findball::ApproachingBall::ApproachingBall(const std::string & node_name,
     tf_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
     tf_->setUsingDedicatedThread(true);
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_, this, false);
-
     this->get_parameter("start_side", start_side);
 } 
 
@@ -300,7 +302,6 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
             {
                 static int stay_calm = 0;
                 static rclcpp::Time state_entry_time;
-
                 //  Enter State
                 if(stay_calm == 0)
                 {
@@ -339,7 +340,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 }
                 
                 // Exit State
-                if(this->now() - state_entry_time > rclcpp::Duration::from_seconds(1))
+                if(this->now() - state_entry_time > rclcpp::Duration::from_seconds(0.5))
                 {
                     stay_calm = 0;
                     reset = 0;
@@ -352,7 +353,6 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 Data_To_Pub.linear.y = 0;
                 Data_To_Pub.angular.z = 0;
                 chassis_pub_->publish(Data_To_Pub);
-                
                 break;
             }
 
@@ -475,6 +475,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 static int stay_calm = 0;
                 static rclcpp::Time state_entry_time;  
                 static Status spin_return;
+                static int skip_count = 0;
                 rclcpp::Duration time_allowance = rclcpp::Duration::from_seconds(20);
                 //  Enter State
                 if(stay_calm == 0)
@@ -501,25 +502,35 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     {
                         // test  
                         JointControl_to_pub->effort[0] = 10.0;
-                        JointControl_to_pub->velocity[0] = (JointState_.position[0] > 0 ? -1.0 : 1.0) * 0.4;
+                        JointControl_to_pub->velocity[0] = (JointState_.position[0] > 0 ? -1.0 : 1.0) * 0.8;
+
                     }
-                    JointControl_to_pub->position[0] = 1.0;
-                    JointControl_to_pub->position[0] = 0;
-                    JointControl_to_pub->velocity[0] = 0;
+                    else{
+                        JointControl_to_pub->effort[0] = 1.0;
+                        JointControl_to_pub->position[0] = 0;
+                        JointControl_to_pub->velocity[0] = 0;
+                    }
                     Data_To_Pub.linear.x = 0;
                     Data_To_Pub.linear.y = 0;
                     Data_To_Pub.angular.z = 0;
                     chassis_pub_->publish(Data_To_Pub);
                     up_pub_->publish(*JointControl_to_pub);
                     RCLCPP_INFO(this->get_logger(), "State:2, %f", JointState_.position[0]);
-                    if(fabs(JointState_.position[0]) < 0.2)
+                    if(fabs(JointState_.position[0]) < 0.05)
                     {
-                        spin_return = Status::IDLE;
-                        stay_calm = 0;
-                        angle_sign = 0;
-                        reset = 0;
-                        action_rate.sleep();
-                        state_ = (APPROACHINGBALL::APPROACHING1);
+                        if(skip_count == 0)
+                        {
+                            reset = 0;
+                        }
+                        if(skip_count >= 6)
+                        {
+                            spin_return = Status::IDLE;
+                            stay_calm = 0;
+                            angle_sign = 0;
+                            skip_count = 0;
+                            state_ = (APPROACHINGBALL::APPROACHING1);
+                        }
+                        skip_count ++;
                         break;
                     }
                 }else if(spin_return == Status::FAILED)
@@ -540,28 +551,6 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     state_ = (APPROACHINGBALL::FAIL);
                     break;
                 }
-                // JointControl_to_pub->effort[0] = 10.0;
-                // JointControl_to_pub->effort[1] = 1.0;
-                // JointControl_to_pub->effort[2] = 1.0;
-                // JointControl_to_pub->effort[3] = 1.0;
-                // JointControl_to_pub->velocity[0] = - PIDController_PTZ.PosePID_Calc( tracking_ball.y - y_approach);
-                // Data_To_Pub.linear.x = 0;
-                // Data_To_Pub.linear.y = 0;
-                // Data_To_Pub.angular.z =  angle_sign * 0.3;
-
-
-                // Exit State
-                // if(fabs(JointState_.position[0])<0.2)
-                // {
-                //     JointControl_to_pub->velocity[0] = 0;
-                //     Data_To_Pub.angular.z = 0;
-                //     stay_calm = 0;
-                //     angle_sign = 0;
-                //     chassis_pub_->publish(Data_To_Pub);
-                //     up_pub_->publish(*JointControl_to_pub);
-                //     state_ = (APPROACHINGBALL::APPROACHING1);
-                //     break;
-                // }
 
                 // Exit State
                 if(this->now() - state_entry_time > rclcpp::Duration::from_seconds(15))
@@ -579,8 +568,6 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     up_pub_->publish(*JointControl_to_pub);
                     break;
                 }
-                // chassis_pub_->publish(Data_To_Pub);
-                // up_pub_->publish(*JointControl_to_pub);
                 break;
             }
     
@@ -617,7 +604,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 }
                 //RCLCPP_INFO(this->get_logger(), "checkpoint3");
                 // Exit State
-                if(this->now() - state_entry_time > rclcpp::Duration::from_seconds(20))
+                if(this->now() - state_entry_time > rclcpp::Duration::from_seconds(13))
                 {
                     stay_calm = 0;
                     JointControl_to_pub->effort[0] = 10.0;
@@ -832,8 +819,6 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
 
             case (APPROACHINGBALL::FINDING):
             {
-                static int left_ball_count = 0;
-                static int right_ball_count = 0;
                 static int state_angle_direction = 0;
                 static rclcpp::Time time_execute;
                 rclcpp::Duration command_time_allowance_{0, 0};
@@ -980,14 +965,57 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
 
     if(rclcpp::ok())
     {
-        action_rate.sleep();
         result->state = 0;
+        /*
+        if(left_ball_count != 0 && left_ball_count >= right_ball_count)
+        {
+            geometry_msgs::msg::PoseStamped data;
+            data.pose.position.x = 10.05;
+            //******* 待增加对面场次的判断 *********
+            data.pose.position.y = 4.25;
+            //******* ----------------- *********
+            data.pose.position.z = 0.0;
+            data.pose.orientation.x = 0.0;
+            data.pose.orientation.y = 0.0;
+            data.pose.orientation.z = -1.0;
+            data.pose.orientation.w = 0.0;
+            // goal_update_->publish();
+            left_ball_count --;
+        }else if(right_ball_count != 0 && left_ball_count < right_ball_count)
+        {
+            geometry_msgs::msg::PoseStamped data;
+            data.pose.position.x = 10.05;
+            //******* 待增加对面场次的判断 *********
+            data.pose.position.y = 4.25;
+            //******* ----------------- *********
+            data.pose.position.z = 0.0;
+            data.pose.orientation.x = 0.0;
+            data.pose.orientation.y = 0.0;
+            data.pose.orientation.z = 0.0;
+            data.pose.orientation.w = 1.0;
+            // goal_update_->publish();
+            right_ball_count --;
+        }else {
+            geometry_msgs::msg::PoseStamped data;
+            data.pose.position.x = 10.05;
+            //******* 待增加对面场次的判断 ********
+            data.pose.position.y = 4.25;
+            //******* ----------------- ********
+            data.pose.position.z = 0.0;
+            data.pose.orientation.x = 0.0;
+            data.pose.orientation.y = 0.0;
+            data.pose.orientation.z = 0.0;
+            data.pose.orientation.w = 1.0;
+            // goal_update_->publish();
+            right_ball_count --;
+        }
+        */
         goal_handle->succeed(result);
         RCLCPP_INFO(this->get_logger(), "Goal succeeded");
-            if(!change_state(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE))
-        {
-            RCLCPP_ERROR(this->get_logger(), "Failed to deactive node %s", lifecycle_node);
-        }
+        // if(!change_state(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE))
+        // {
+        //     RCLCPP_ERROR(this->get_logger(), "Failed to deactive node %s", lifecycle_node);
+        // }
     }
 }
 

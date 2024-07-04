@@ -86,6 +86,7 @@ namespace action_findball {
             rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr chassis_sub_;
             rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr up_pub_;
             rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr up_sub_;
+            rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr goal_update_;
 
             void get_pose_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
             void get_imu_callback(const std_msgs::msg::Float32MultiArray::SharedPtr msg);
@@ -158,6 +159,11 @@ namespace action_findball {
             action_findball::Status SupervisorState;
 
             std::string start_side;
+
+            int left_ball_count;
+            int right_ball_count;
+
+            action_findball::TOWARD toward;
 
     };
 

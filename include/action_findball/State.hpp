@@ -48,6 +48,12 @@ namespace action_findball {
         timeout = 5,
         SUCCEED = 6
     };
+
+    enum class TOWARD {
+        FRONT = 0,
+        LEFT = 1,
+        RIGHT = 2,
+    };
 } //    namespace action_findball
 
 #endif // STATE_HPP

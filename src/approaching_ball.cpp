@@ -853,6 +853,8 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     }
                     
                     if(is_found_){
+                        left_ball_count -- ;
+                        if(left_ball_count < 0) left_ball_count = 0;
                         state_ = (APPROACHINGBALL::TOFORWARD);
                         state_angle_direction = 0;
                         count_ = 0;
@@ -860,8 +862,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     command_time_allowance_ = this->now() - time_execute;
                     if(command_time_allowance_.seconds() > 2){
                         state_angle_direction = 1;
-                        left_ball_count -- ;
-                        if(left_ball_count < 0) left_ball_count = 0;
+                        left_ball_count = 0;
                         count_ = 0;
                     }
                 }else if(state_angle_direction == 1)
@@ -903,19 +904,21 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     if(is_found_) {
                         count_ = 0;
                         state_angle_direction = 0;
+                        right_ball_count --;
+                        if(right_ball_count < 0) right_ball_count = 0;
                         state_ = (APPROACHINGBALL::TOFORWARD);
                     }
                     command_time_allowance_ = this->now() - time_execute;
                     if(command_time_allowance_.seconds() > 2){
+                        right_ball_count = 0;
                         state_angle_direction = -1;
-                        right_ball_count --;
-                        if(right_ball_count < 0) right_ball_count = 0;
                         count_ = 0;
                     }
                 }
                 //再不行转为NO_BALL
                 else if(state_angle_direction == -1)
                 {
+
                     Data_To_Pub.linear.x = 0.0;
                     Data_To_Pub.linear.y = 0.0;
                     Data_To_Pub.angular.z = 0.0;

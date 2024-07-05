@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <root>
-    <car b="0.42"></car>
+    <car b="0.305"></car>
     <area3_left>
         <left_up>
             <x>12.05</x>
-            <y>6</y>
+            <y>6.1</y>
         </left_up>
         <left_down>
             <x>8.05</x>
-            <y>6</y>
+            <y>6.1</y>
         </left_down>
         <right_down>
             <x>8.05</x>
@@ -22,11 +22,11 @@
     <area3_right>
         <left_up>
             <x>12.05</x>
-            <y>-6</y>
+            <y>-6.1</y>
         </left_up>
         <left_down>
             <x>8.05</x>
-            <y>-6</y>
+            <y>-6.1</y>
         </left_down>
         <right_down>
             <x>8.05</x>

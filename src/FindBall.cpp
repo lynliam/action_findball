@@ -29,7 +29,12 @@ cv::Scalar upper_purple = cv::Scalar(191, 230, 255);
 // cv::Scalar lower_blue = cv::Scalar(103, 125, 0);
 // cv::Scalar upper_blue = cv::Scalar(124, 233, 255);
 
-cv::Scalar lower_blue = cv::Scalar(103, 154, 0);
+// 7-4 night
+// cv::Scalar lower_blue = cv::Scalar(103, 131, 0);
+// cv::Scalar upper_blue = cv::Scalar(133, 232, 255);
+
+// 7-5  noon
+cv::Scalar lower_blue = cv::Scalar(100, 154, 0);
 cv::Scalar upper_blue = cv::Scalar(124, 233, 255);
 
 cv::Scalar lower_red = cv::Scalar(157, 100, 0);
@@ -330,7 +335,7 @@ bool CameraUPServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,std
     // 使用 lambda 表达式进行排序
     std::sort(target_ellipses.begin(), target_ellipses.end(), 
             [](const cv::Vec3d& a, const cv::Vec3d& b) {
-            return (600 - a[1])*(600 - a[1])+2*(400 - a[0])*(400 - a[0]) < (600 - b[1])*(600 - b[1])+2*(400 - b[0])*(400 - b[0]); // 按 center.y 降序排序
+            return (600 - a[1])*(600 - a[1])+(400 - a[0])*(400 - a[0]) < (600 - b[1])*(600 - b[1])+(400 - b[0])*(400 - b[0]); // 按 center.y 降序排序
             });
     if(target_ellipses.size() == 0)
         return false;
@@ -352,7 +357,7 @@ bool CameraUPServer::find_ball(int type, std::vector<cv::Vec3d> &ball_result,std
     // 使用 lambda 表达式进行排序
     std::sort(purple_ellipses.begin(), purple_ellipses.end(), 
             [](const cv::Vec3d& a, const cv::Vec3d& b) {
-            return (600 - a[1])*(600 - a[1])+2*(400 - a[0])*(400 - a[0]) < (600 - b[1])*(600 - b[1])+2*(400 - b[0])*(400 - b[0]); // 按 center.y 降序排序
+            return (600 - a[1])*(600 - a[1])+(400 - a[0])*(400 - a[0]) < (600 - b[1])*(600 - b[1])+(400 - b[0])*(400 - b[0]); // 按 center.y 降序排序
             });
     purple_result.resize(5);
     purple_result.assign(purple_ellipses.begin(), purple_ellipses.end());

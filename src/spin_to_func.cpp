@@ -32,8 +32,8 @@ action_findball::SpinTo::SpinTo()
 void action_findball::SpinTo::onConfigure()
 {
     simulate_ahead_time_ = 2.0;
-    max_rotational_vel_ = 1.25;
-    min_rotational_vel_ = 0.3;
+    max_rotational_vel_ = 1.4;
+    min_rotational_vel_ = 0.4;
     rotational_acc_lim_ = 0.3;
 }
 

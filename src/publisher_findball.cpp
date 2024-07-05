@@ -59,6 +59,7 @@ namespace PublisherFindballCPP {
                 std::unique_lock<std::mutex> lock_flag(mutex_flag, std::defer_lock);
                 if(curl) curl_easy_setopt(curl, CURLOPT_URL, "http://0.0.0.0:8000/upload");  // 设置URL
                 cv::Mat color_img;
+                int type = 0;
                 while(rclcpp::ok())
                 {
                     std::unique_lock<std::mutex> lock(mutex_);
@@ -68,7 +69,7 @@ namespace PublisherFindballCPP {
                     lock.unlock();
 
                     auto ball_info = std::make_shared<rc2024_interfaces::msg::BallInfo>();
-                    auto type = this->get_parameter("balltype").as_int();
+                    this->get_parameter("balltype",type);
                     std::vector<cv::Vec3d> ball_result;
                     std::vector<cv::Vec3d> purple_result;
                     // lock_flag.lock();
@@ -79,7 +80,7 @@ namespace PublisherFindballCPP {
                         
                     // else if(camera_flag_ == 1)
                     //     findball_server_handler = findball_server_handler_jaw;
-                    type = 2;
+                    // type = 2;
                     if(findball_server_handler->find_ball(type, ball_result, purple_result))
                     {
                         ball_info->balls_info.resize(ball_result.size());

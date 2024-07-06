@@ -37,7 +37,7 @@ namespace PublisherFindballCPP {
             signal(false),stop(false)
             {
                 RCLCPP_INFO(this->get_logger(), "PublisherFindball Node has been created");
-                this->declare_parameter<int>("balltype", 2);
+                declare_parameter<int>("balltype", 2);
                 //publisher_ = this->create_publisher<rc2024_interfaces::msg::BallInfo>("ball_info", 10);
                 curl = curl_easy_init();
                 findball_server_handler_up = std::make_shared<CameraUPServer>();
@@ -59,7 +59,6 @@ namespace PublisherFindballCPP {
                 std::unique_lock<std::mutex> lock_flag(mutex_flag, std::defer_lock);
                 if(curl) curl_easy_setopt(curl, CURLOPT_URL, "http://0.0.0.0:8000/upload");  // 设置URL
                 cv::Mat color_img;
-                int type = 0;
                 while(rclcpp::ok())
                 {
                     std::unique_lock<std::mutex> lock(mutex_);
@@ -69,7 +68,6 @@ namespace PublisherFindballCPP {
                     lock.unlock();
 
                     auto ball_info = std::make_shared<rc2024_interfaces::msg::BallInfo>();
-                    this->get_parameter("balltype",type);
                     std::vector<cv::Vec3d> ball_result;
                     std::vector<cv::Vec3d> purple_result;
                     // lock_flag.lock();
@@ -81,6 +79,7 @@ namespace PublisherFindballCPP {
                     // else if(camera_flag_ == 1)
                     //     findball_server_handler = findball_server_handler_jaw;
                     // type = 2;
+                    // RCLCPP_INFO(this->get_logger(), "colcor : %d", type);
                     if(findball_server_handler->find_ball(type, ball_result, purple_result))
                     {
                         ball_info->balls_info.resize(ball_result.size());
@@ -174,7 +173,9 @@ namespace PublisherFindballCPP {
                 // 创建一个QoS配置对象，设置可靠性为BestEffort
 
                 publisher_ = this->create_publisher<rc2024_interfaces::msg::BallInfo>("ball_info",*qos_profile);
-                RCLCPP_INFO(get_logger(), "on_configure() is called.");
+                get_parameter("balltype",type);                
+                RCLCPP_INFO(get_logger(), "on_configure() is called.balltype: %d", type);
+
 
                 // We return a success and hence invoke the transition to the next
                 // step: "inactive".
@@ -274,6 +275,7 @@ namespace PublisherFindballCPP {
             std::condition_variable condition_;
             bool signal;
             bool stop;
+            int type ;
 
             std::vector<uchar> buf;
 
@@ -292,7 +294,7 @@ int main(int argc, char * argv[])
     rclcpp::init(argc, argv);
     rclcpp::executors::MultiThreadedExecutor exe;
     
-    auto node = std::make_shared<PublisherFindballCPP::PublisherFindball>("findball");
+    auto node = std::make_shared<PublisherFindballCPP::PublisherFindball>("publisher_findball");
     exe.add_node(node->get_node_base_interface());
     std::thread threadOBJ(&PublisherFindballCPP::PublisherFindball::executor, &(*node));
     exe.spin();

@@ -41,10 +41,10 @@ cv::Scalar upper_purple = cv::Scalar(191, 230, 255);
 cv::Scalar lower_blue = cv::Scalar(100, 143, 0);
 cv::Scalar upper_blue = cv::Scalar(128, 233, 255);
 
-cv::Scalar lower_red = cv::Scalar(157, 100, 0);
+cv::Scalar lower_red = cv::Scalar(157, 177, 0);
 cv::Scalar upper_red = cv::Scalar(190, 251, 255);
-cv::Scalar lower_red_1 = cv::Scalar(0, 100, 0);
-cv::Scalar upper_red_1 = cv::Scalar(24, 255, 255);
+cv::Scalar lower_red_1 = cv::Scalar(0, 0, 0);
+cv::Scalar upper_red_1 = cv::Scalar(0, 0, 255);
 
 cv::Scalar lower_purple_jaw = cv::Scalar(142, 67, 41);
 cv::Scalar upper_purple_jaw = cv::Scalar(175, 162, 255);

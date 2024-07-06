@@ -451,7 +451,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 }
 
                 // Exit State
-                if(this->now() - state_entry_time > rclcpp::Duration::from_seconds(10))
+                if(this->now() - state_entry_time > rclcpp::Duration::from_seconds(7))
                 {
                     stay_calm = 0;
                     crash_time = 0;
@@ -460,6 +460,8 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     Data_To_Pub.linear.x = 0;
                     Data_To_Pub.linear.y = 0;
                     Data_To_Pub.angular.z = 0;
+                    fail_pose = tf_current_pose;
+                    fail_yaw = JointState_.position[0];
                     state_ = (APPROACHINGBALL::FAIL);
                     chassis_pub_->publish(Data_To_Pub);
                     up_pub_->publish(*JointControl_to_pub);
@@ -689,6 +691,9 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     stay_calm = 0;
                     crash_time = 0;
                     count__ = 0;
+                    fail_pose = tf_current_pose;
+                    fail_yaw = JointState_.position[0];
+
                     JointControl_to_pub->effort[0] = 10.0;
                     JointControl_to_pub->velocity[0] = 0;
                     Data_To_Pub.linear.x = 0;
@@ -698,7 +703,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 }
                 //RCLCPP_DEBUG(this->get_logger(), "checkpoint4");
                 // Exit State
-                if((fabs(Data_To_Pub.linear.x)>0.2 || fabs(Data_To_Pub.linear.y)>0.2)&& (fabs(current_pose.twist.twist.linear.x) < 0.2 || fabs(current_pose.twist.twist.linear.x) < 0.2))
+                if((fabs(Data_To_Pub.linear.x)>0.2 || fabs(Data_To_Pub.linear.y)>0.2) && (fabs(current_pose.twist.twist.linear.x) < 0.2 || fabs(current_pose.twist.twist.linear.x) < 0.2))
                 {
                     static rclcpp::Time state_entry_time__;
                     if(count__ == 0)
@@ -1120,6 +1125,10 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
         }
         if(state_ == (APPROACHINGBALL::FAIL))
         {
+            /*
+            fail_pose = tf_current_pose;
+            fail_yaw = JointState_.position[0];
+            */
             JointControl_to_pub->effort[0] = 10.0;
             JointControl_to_pub->velocity[0] = 0.0;
             Data_To_Pub.linear.x = 0;
@@ -1127,7 +1136,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
             Data_To_Pub.angular.z = 0;
             geometry_msgs::msg::PoseStamped data;
             data.pose.position.x = 10.05;
-            //******* 待增加对面场次的判断 ********
+            
             if(start_side == "left")
             {
                 data.pose.position.y = 4.0;
@@ -1140,7 +1149,6 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 data.pose.orientation.z = 0.707;
                 data.pose.orientation.w = 0.707;
             }
-            //******* ----------------- ********
             data.header.frame_id = "map";
             data.header.stamp = this->now();
             data.pose.position.z = 0.0;
@@ -1716,6 +1724,56 @@ bool action_findball::ApproachingBall::arm_executor(const std::shared_ptr<sensor
         loop_rate.sleep();
     }
     return true;
+}
+
+void action_findball::ApproachingBall::fail_handler(geometry_msgs::msg::PoseStamped &fail_pose_, double fail_yaw_)
+{
+    geometry_msgs::msg::PoseStamped data;
+    data.header.frame_id = "map";
+    data.header.stamp = this->now();
+
+    if(8.05 < fail_pose_.pose.position.x && fail_pose_.pose.position.x < 10.05)
+    {
+        RCLCPP_INFO(this->get_logger(), "Fail to get ball due to stuck in the corner, reset the position");
+        if(fail_pose_.pose.position.y >0)
+        {
+            RCLCPP_INFO(this->get_logger(), "left");
+            double  chassis_yaw = tf2::getYaw(fail_pose_.pose.orientation);
+            
+
+        }else
+        {
+            RCLCPP_INFO(this->get_logger(), "right");
+            double  chassis_yaw = tf2::getYaw(fail_pose_.pose.orientation);
+        }
+    }else if (10.05 < fail_pose_.pose.position.x && fail_pose_.pose.position.x < 12.05) {
+        RCLCPP_INFO(this->get_logger(), "Fail to get ball due to stuck in the corner, reset the position");
+        if(fail_pose_.pose.position.y >0)
+        {
+            RCLCPP_INFO(this->get_logger(), "left");
+            double  chassis_yaw = tf2::getYaw(fail_pose_.pose.orientation);
+            
+        }
+    }
+
+    data.pose.position.x = 10.05;
+    if(start_side == "left")
+    {
+        data.pose.position.y = 4.0;
+        data.pose.orientation.z = -0.707;
+        data.pose.orientation.w = 0.707;
+    }
+    else if(start_side == "right")
+    {
+        data.pose.position.y = -4.0;
+        data.pose.orientation.z = 0.707;
+        data.pose.orientation.w = 0.707;
+    }
+    
+    data.pose.position.z = 0.0;
+    data.pose.orientation.x = 0.0;
+    data.pose.orientation.y = 0.0;
+    goal_update_->publish(data);
 }
 
 void action_findball::ApproachingBall::global_supervisor(const geometry_msgs::msg::PoseStamped &tf_current_pose_,const nav_msgs::msg::Odometry &ChassisPa_)

@@ -39,7 +39,7 @@ cv::Scalar upper_purple = cv::Scalar(191, 230, 255);
 
 // 7-6  noon
 cv::Scalar lower_blue = cv::Scalar(100, 147, 0);
-cv::Scalar upper_blue = cv::Scalar(130, 233, 255);
+cv::Scalar upper_blue = cv::Scalar(132, 233, 255);
 
 cv::Scalar lower_red = cv::Scalar(157, 177, 0);
 cv::Scalar upper_red = cv::Scalar(190, 251, 255);

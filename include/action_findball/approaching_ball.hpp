@@ -65,6 +65,7 @@ namespace action_findball {
                                 double joint1);
             void global_supervisor(const geometry_msgs::msg::PoseStamped &tf_current_pose_,const nav_msgs::msg::Odometry &ChassisPa_);
             bool check_position(const geometry_msgs::msg::PoseStamped &tf_current_pose_, float x,float y, float w);
+            void fail_handler(geometry_msgs::msg::PoseStamped &fail_pose_, double fail_yaw_);
             
             void catch_ball_execute(const std::shared_ptr<GoalHandleEmptyGoal> goal_handle);
             void put_ball_execute(const std::shared_ptr<GoalHandleEmptyGoal> goal_handle);
@@ -159,7 +160,8 @@ namespace action_findball {
             action_findball::Status SupervisorState;
 
             std::string start_side;
-            
+            geometry_msgs::msg::PoseStamped fail_pose;
+            double fail_yaw;
 
             int left_ball_count;
             int right_ball_count;

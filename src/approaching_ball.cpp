@@ -360,6 +360,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
             {
                 static int stay_calm = 0;
                 static rclcpp::Time state_entry_time;
+                static int not_found_ = 0;
                 
                 //  Enter State
                 if(stay_calm == 0)
@@ -398,6 +399,25 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     break;
                 }
                 // Eixt State
+                if(is_found_ == false)
+                {
+                    not_found_ ++;
+                    if(not_found_ >= 20)
+                    {
+                        stay_calm = 0;
+                        JointControl_to_pub->effort[0] = 10.0;
+                        JointControl_to_pub->velocity[0] = 0;
+                        Data_To_Pub.linear.x = 0;
+                        Data_To_Pub.linear.y = 0;
+                        Data_To_Pub.angular.z = 0;
+                        state_ = (APPROACHINGBALL::LOOKING);
+                        chassis_pub_->publish(Data_To_Pub);
+                        up_pub_->publish(*JointControl_to_pub);
+                        break;
+                    }
+                }else{
+                    not_found_ = 0;
+                }
                 
                 
                 // Eixt State
@@ -663,7 +683,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                         JointControl_to_pub->velocity[0] = 0;
                         /***----- ----- ***/
                         // arm_executor(JointControl_to_pub, JointState_, JointState_.position[0], -0.05, -0.391, 0.1);
-                        arm_executor(JointControl_to_pub, JointState_, JointState_.position[0], -0.2, 0.12, 0.05);
+                        // arm_executor(JointControl_to_pub, JointState_, JointState_.position[0], -0.2, 0.12, 0.05);
                         Data_To_Pub.linear.x = 0;
                         Data_To_Pub.linear.y = 0;
                         Data_To_Pub.angular.z = 0;
@@ -687,29 +707,31 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
             {
                 static int action_step = 0;
                 switch (action_step) {
-                    // case 0:
-                    // {
-                    //     // -0.2, 0.12, 0.05
-                    //     JointControl_to_pub->effort[0] = 10.0;
-                    //     JointControl_to_pub->effort[1] = 1.0;
-                    //     JointControl_to_pub->effort[2] = 1.0;
-                    //     JointControl_to_pub->effort[3] = 1.0;
-                    //     JointControl_to_pub->velocity[0] = 0.0;
-                    //     JointControl_to_pub->position[1] = -0.2;
-                    //     JointControl_to_pub->position[2] = 0.12;
-                    //     JointControl_to_pub->position[3] = 0.12;
-                    //     up_pub_->publish(*JointControl_to_pub);
-                    //     if(fabs(JointState_.position[1] + 0.2) <= 0.1)
-                    //         action_step = 1;
-                    //     if(JointState_.velocity[0] >=5)
-                    //     {
-                    //         JointControl_to_pub->position[3] = -0.2;
-                    //         up_pub_->publish(*JointControl_to_pub);
-                    //         action_step = 2;
-                    //     }
-                    //     break;
-                    // }
                     case 0:
+                    {
+                        // -0.2, 0.12, 0.05
+                        JointControl_to_pub->effort[0] = 10.0;
+                        JointControl_to_pub->effort[1] = 1.0;
+                        JointControl_to_pub->effort[2] = 1.0;
+                        JointControl_to_pub->effort[3] = 1.0;
+                        JointControl_to_pub->velocity[0] = 0.0;
+                        JointControl_to_pub->position[1] = -0.2;
+                        JointControl_to_pub->position[2] = 0.12;
+                        JointControl_to_pub->position[3] = 0.12;
+                        up_pub_->publish(*JointControl_to_pub);
+                        if(fabs(JointState_.position[1] + 0.2) <= 0.1)
+                            action_step = 1;
+                        if(JointState_.velocity[0] >=5)
+                        {
+                            JointControl_to_pub->position[3] = -0.2;
+                            up_pub_->publish(*JointControl_to_pub);
+                            action_step = 3;
+                            action_rate.sleep();
+                            action_rate.sleep();
+                        }
+                        break;
+                    }
+                    case 1:
                     {
                         action_rate.sleep();
                         JointControl_to_pub->effort[0] = 10.0;
@@ -718,14 +740,14 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                         JointControl_to_pub->effort[3] = 1.0;
                         JointControl_to_pub->velocity[0] = 0.0;
                         JointControl_to_pub->position[1] = -0.1;
-                        JointControl_to_pub->position[2] = -0.9;
-                        JointControl_to_pub->position[3] = -0.1;
+                        JointControl_to_pub->position[2] = -0.8;
+                        JointControl_to_pub->position[3] = 0.12;
                         up_pub_->publish(*JointControl_to_pub);
                         action_rate.sleep();
-                        action_step = 1;
+                        action_step = 2;
                         break;
                     }
-                    case 1:
+                    case 2:
                     {
                         JointControl_to_pub->effort[0] = 10.0;
                         JointControl_to_pub->effort[1] = 1.0;
@@ -734,10 +756,10 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                         JointControl_to_pub->velocity[0] = 0.0;
                         JointControl_to_pub->position[3] = -0.2;
                         up_pub_->publish(*JointControl_to_pub);
-                        action_step = 2;
+                        action_step = 3;
                         break;
                     }
-                    case 2:
+                    case 3:
                     {
                         static int count_for_this_state = 0;
                         static int count_for_result = 0;

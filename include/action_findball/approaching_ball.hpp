@@ -159,6 +159,7 @@ namespace action_findball {
             action_findball::Status SupervisorState;
 
             std::string start_side;
+            
 
             int left_ball_count;
             int right_ball_count;

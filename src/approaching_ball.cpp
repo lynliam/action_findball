@@ -362,6 +362,10 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 static rclcpp::Time state_entry_time;
                 static int not_found_ = 0;
                 static int crash_time = 0;
+
+                if(fabs(JointState_.position[0])>2.0) {
+
+                }
                 
                 //  Enter State
                 if(stay_calm == 0)
@@ -680,7 +684,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 }
                 //RCLCPP_DEBUG(this->get_logger(), "checkpoint3");
                 // Exit State
-                if(this->now() - state_entry_time > rclcpp::Duration::from_seconds(10))
+                if(this->now() - state_entry_time > rclcpp::Duration::from_seconds(5))
                 {
                     stay_calm = 0;
                     crash_time = 0;
@@ -825,8 +829,8 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                         JointControl_to_pub->effort[3] = 1.0;
                         JointControl_to_pub->velocity[0] = 0.0;
                         JointControl_to_pub->position[1] = -0.15;
-                        JointControl_to_pub->position[2] = -0.8;
-                        JointControl_to_pub->position[3] = 0.1;
+                        JointControl_to_pub->position[2] = -0.32;
+                        JointControl_to_pub->position[3] = -0.05;
                         up_pub_->publish(*JointControl_to_pub);
                         action_rate.sleep();
                         action_step = 1;
@@ -860,6 +864,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                                 up_pub_->publish(*JointControl_to_pub);
                                 count_for_result = 0;
                                 action_step = 0;
+                                
                                 state_ = (APPROACHINGBALL::SUCCEED);
                                 break;
                             }
@@ -978,10 +983,10 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 double y_position;
                 rclcpp::Duration command_time_allowance_{0, 0};
                 
-                if(fabs(tf_current_pose.pose.position.y) < 3.5) y_position = 0.7; else y_position = 1.52;
+                if(start_side == "left") y_position = 1.52; else y_position = -1.52;
 
-                if(toward == TOWARD::FRONT)
-                {
+                // if(toward == TOWARD::FRONT)
+                // {
                     if(left_ball_count != 0 && left_ball_count >= right_ball_count)
                     {
                         state_angle_direction = 0;
@@ -989,7 +994,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     {
                         state_angle_direction = 2;
                     }
-                }
+                // }
                 //向左旋转云台 45/90 度
                 if(state_angle_direction == 0)
                 {
@@ -1015,6 +1020,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                         left_ball_count -- ;
                         if(left_ball_count < 0) left_ball_count = 0;
                         //state_ = (APPROACHINGBALL::TOFORWARD);
+                        reset = 0;
                         state_ = (APPROACHINGBALL::APPROACHING1);
                         state_angle_direction = 0;
                         count_ = 0;
@@ -1042,8 +1048,8 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 //向右旋转云台 45/90 度
                 else if(state_angle_direction == 2)
                 {
-                    if(toward == TOWARD::FRONT)
-                        right_ball_count = ball_info_.size();
+                    // if(toward == TOWARD::FRONT)
+                    right_ball_count = ball_info_.size();
                     static int count_ = 0;
                     JointControl_to_pub->effort[0] = 1.0;
                     JointControl_to_pub->position[0] = y_position;
@@ -1065,11 +1071,12 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     if(is_found_) {
                         count_ = 0;
                         state_angle_direction = 0;
-                        if(toward == TOWARD::FRONT)
-                        {
+                        reset = 0;
+                        // if(toward == TOWARD::FRONT)
+                        // {
                             right_ball_count --;
                             if(right_ball_count < 0) right_ball_count = 0;
-                        }
+                        // }
                         // state_ = (APPROACHINGBALL::TOFORWARD);
                         state_ = (APPROACHINGBALL::APPROACHING1);
                     }
@@ -1099,6 +1106,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
 
         if(state_ == (APPROACHINGBALL::SUCCEED))
         {
+            JointControl_to_pub->effort[0] = 10.0;
             JointControl_to_pub->velocity[0] = 0.0;
             //JointControl_to_pub->effort[0] = 10.0;
             //arm_executor(JointControl_to_pub, JointState_, 0.0, 0.119, 0.527, -0.400);
@@ -1112,9 +1120,8 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
         }
         if(state_ == (APPROACHINGBALL::FAIL))
         {
+            JointControl_to_pub->effort[0] = 10.0;
             JointControl_to_pub->velocity[0] = 0.0;
-            //JointControl_to_pub->effort[0] = 1.0;
-            //arm_executor(JointControl_to_pub, JointState_, 0.0, 0.119, 0.527, -0.400);
             Data_To_Pub.linear.x = 0;
             Data_To_Pub.linear.y = 0;
             Data_To_Pub.angular.z = 0;
@@ -1123,13 +1130,13 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
             //******* 待增加对面场次的判断 ********
             if(start_side == "left")
             {
-                data.pose.position.y = 3.9;
+                data.pose.position.y = 4.0;
                 data.pose.orientation.z = -0.707;
                 data.pose.orientation.w = 0.707;
             }
             else if(start_side == "right")
             {
-                data.pose.position.y = -3.9;
+                data.pose.position.y = -4.0;
                 data.pose.orientation.z = 0.707;
                 data.pose.orientation.w = 0.707;
             }
@@ -1254,13 +1261,13 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
         //******* 待增加对面场次的判断 ********
         if(start_side == "left")
         {
-            data.pose.position.y = 3.85;
+            data.pose.position.y = 4.25;
             data.pose.orientation.z = -0.707;
             data.pose.orientation.w = 0.707;
         }
         else if(start_side == "right")
         {
-            data.pose.position.y = 3.85;
+            data.pose.position.y = -4.25;
             data.pose.orientation.z = 0.707;
             data.pose.orientation.w = 0.707;
         }

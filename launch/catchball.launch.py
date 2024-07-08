@@ -24,7 +24,7 @@ def generate_launch_description():
     findball = Node(
         package='action_findball',
         executable='publisher_findball',
-        name='findball',
+        name='publisher_findball',
         output='screen', #用于将话题信息打印到屏幕
     )
     

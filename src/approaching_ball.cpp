@@ -340,7 +340,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 }
                 
                 // Exit State
-                if(this->now() - state_entry_time > rclcpp::Duration::from_seconds(0.5))
+                if(this->now() - state_entry_time > rclcpp::Duration::from_seconds(0.7))
                 {
                     stay_calm = 0;
                     reset = 0;
@@ -438,15 +438,16 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     Data_To_Pub.linear.x = 0;
                     Data_To_Pub.linear.y = 0;
                     Data_To_Pub.angular.z = 0;
-                    crash_time ++;
-                    if(crash_time <=2)
-                    {
-                        state_ = APPROACHINGBALL::CRASH;
-                    }
-                    else{
-                        state_ = (APPROACHINGBALL::FAIL);
-                        crash_time = 0;
-                    }
+                    state_ = (APPROACHINGBALL::FAIL);
+                    // crash_time ++;
+                    // if(crash_time <=2)
+                    // {
+                    //     state_ = APPROACHINGBALL::CRASH;
+                    // }
+                    // else{
+                    //     state_ = (APPROACHINGBALL::FAIL);
+                    //     crash_time = 0;
+                    // }
                     break;
                 }
 
@@ -540,7 +541,6 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     stay_calm = 0;
                     state_ = (APPROACHINGBALL::FAIL);
                 }
-
                 break;
             }
 
@@ -563,7 +563,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     angle_diff = JointState_.position[0];
                     spin_to_func->onRun(angle_diff, time_allowance, tf_current_pose);
                 }
-
+                
                 tracking_ball__ = tracking_ball;
                 if(spin_return != Status::SUCCEEDED)
                 {
@@ -579,8 +579,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     {
                         // test  
                         JointControl_to_pub->effort[0] = 10.0;
-                        JointControl_to_pub->velocity[0] = (JointState_.position[0] > 0 ? -1.0 : 1.0) * 8;
-
+                        JointControl_to_pub->velocity[0] = (JointState_.position[0] > 0 ? -1.0 : 1.0) * 12;
                     }
                     else{
                         JointControl_to_pub->effort[0] = 1.0;
@@ -711,7 +710,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                         state_entry_time__ = this->now();
                         count__ = 0;
                     }
-                    if(this->now() - state_entry_time__ > rclcpp::Duration::from_seconds(2))
+                    if(this->now() - state_entry_time__ > rclcpp::Duration::from_seconds(4))
                     {
                         stay_calm = 0;
                         crash_time = 0;
@@ -720,7 +719,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                         Data_To_Pub.linear.x = 0;
                         Data_To_Pub.linear.y = 0;
                         Data_To_Pub.angular.z = 0;
-                        state_ = APPROACHINGBALL::CRASH;
+                        state_ = APPROACHINGBALL::FAIL;
                         count__ = 0;
                     }
                 }
@@ -734,17 +733,18 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     Data_To_Pub.linear.x = 0;
                     Data_To_Pub.linear.y = 0;
                     Data_To_Pub.angular.z = 0;
-                    crash_time ++;
-                    if(crash_time <=2)
-                    {
-                        count__ = 0;
-                        state_ = APPROACHINGBALL::CRASH;
-                    }
-                    else{
-                        count__ = 0;
-                        state_ = (APPROACHINGBALL::FAIL);
-                        crash_time = 0;
-                    }
+                    state_ = (APPROACHINGBALL::FAIL);
+                    // crash_time ++;
+                    // if(crash_time <=2)
+                    // {
+                    //     count__ = 0;
+                    //     state_ = APPROACHINGBALL::CRASH;
+                    // }
+                    // else{
+                    //     count__ = 0;
+                    //     state_ = (APPROACHINGBALL::FAIL);
+                    //     crash_time = 0;
+                    // }
                     break;
                 }
 
@@ -862,14 +862,16 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                             loop_rate.sleep();
                             if(JointState_.velocity[0] >= 5.0)
                             {
+                                JointControl_to_pub->effort[0] = 10.0;
                                 JointControl_to_pub->position[3] = -0.2;
                                 up_pub_->publish(*JointControl_to_pub);
                                 loop_rate.sleep();
+                                JointControl_to_pub->effort[0] = 10.0;
                                 JointControl_to_pub->position[3] = -0.2;
                                 up_pub_->publish(*JointControl_to_pub);
                                 count_for_result = 0;
                                 action_step = 0;
-                                
+
                                 state_ = (APPROACHINGBALL::SUCCEED);
                                 break;
                             }
@@ -987,11 +989,9 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 static rclcpp::Time time_execute;
                 double y_position;
                 rclcpp::Duration command_time_allowance_{0, 0};
-                
                 if(start_side == "left") y_position = 1.52; else y_position = -1.52;
-
-                // if(toward == TOWARD::FRONT)
-                // {
+                if(toward == TOWARD::FRONT)
+                {
                     if(left_ball_count != 0 && left_ball_count >= right_ball_count)
                     {
                         state_angle_direction = 0;
@@ -999,13 +999,13 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     {
                         state_angle_direction = 2;
                     }
-                // }
-                //向左旋转云台 45/90 度
+                }
+                //向左旋转云台 90 度
                 if(state_angle_direction == 0)
                 {
                     left_ball_count = ball_info_.size();
                     JointControl_to_pub->effort[0] = 1.0;
-                    JointControl_to_pub->position[0] = -y_position;
+                    JointControl_to_pub->position[0] = y_position;
                     Data_To_Pub.linear.x = 0.0;
                     Data_To_Pub.linear.y = 0.0;
                     Data_To_Pub.angular.z = 0.0;
@@ -1022,10 +1022,23 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     }
                     
                     if(is_found_){
-                        left_ball_count -- ;
-                        if(left_ball_count < 0) left_ball_count = 0;
                         //state_ = (APPROACHINGBALL::TOFORWARD);
                         reset = 0;
+                        for(int i = 0;i <= 5; i++)
+                        {
+                            lock_ball.lock();
+                            ball_info_.assign(ball_info.begin(), ball_info.end());
+                            purple_info_.assign(purple_info.begin(), purple_info.end());
+                            ball_info_header_ = ball_info_header;
+                            is_found_ = is_found;
+                            lock_ball.unlock();
+                            up_decision_making(ball_info_, purple_info_, is_found_, situation,0);
+                            loop_rate.sleep();
+                        }
+                        left_ball_count = ball_info_.size();
+                        left_ball_count -- ;
+                        if(left_ball_count < 0) left_ball_count = 0;
+                        RCLCPP_INFO(this->get_logger(), " check left_ball_count: %d", left_ball_count);
                         state_ = (APPROACHINGBALL::APPROACHING1);
                         state_angle_direction = 0;
                         count_ = 0;
@@ -1050,14 +1063,14 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                         state_angle_direction = 2;
                 }
 
-                //向右旋转云台 45/90 度
+                //向右旋转云台 90 度
                 else if(state_angle_direction == 2)
                 {
                     // if(toward == TOWARD::FRONT)
                     right_ball_count = ball_info_.size();
                     static int count_ = 0;
                     JointControl_to_pub->effort[0] = 1.0;
-                    JointControl_to_pub->position[0] = y_position;
+                    JointControl_to_pub->position[0] = -y_position;
                     Data_To_Pub.linear.x = 0.0;
                     Data_To_Pub.linear.y = 0.0;
                     Data_To_Pub.angular.z = 0.0;
@@ -1077,12 +1090,21 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                         count_ = 0;
                         state_angle_direction = 0;
                         reset = 0;
-                        // if(toward == TOWARD::FRONT)
-                        // {
-                            right_ball_count --;
-                            if(right_ball_count < 0) right_ball_count = 0;
-                        // }
-                        // state_ = (APPROACHINGBALL::TOFORWARD);
+                        for(int i = 0;i <= 5; i++)
+                        {
+                            lock_ball.lock();
+                            ball_info_.assign(ball_info.begin(), ball_info.end());
+                            purple_info_.assign(purple_info.begin(), purple_info.end());
+                            ball_info_header_ = ball_info_header;
+                            is_found_ = is_found;
+                            lock_ball.unlock();
+                            up_decision_making(ball_info_, purple_info_, is_found_, situation,0);
+                            loop_rate.sleep();
+                        }
+                        right_ball_count = ball_info_.size();
+                        right_ball_count --;
+                        if(right_ball_count < 0) right_ball_count = 0;
+                        RCLCPP_INFO(this->get_logger(), " check right_ball_count: %d", right_ball_count);
                         state_ = (APPROACHINGBALL::APPROACHING1);
                     }
                     command_time_allowance_ = this->now() - time_execute;
@@ -1105,6 +1127,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 }
                 
                 RCLCPP_DEBUG(this->get_logger(), "state:Finding, %d", state_angle_direction);
+                RCLCPP_INFO(this->get_logger(), "toward: %d, left: %d, right %d", static_cast<int>(toward), left_ball_count, right_ball_count);
                 break;
             }
         }
@@ -1139,13 +1162,13 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
             
             if(start_side == "left")
             {
-                data.pose.position.y = 4.0;
+                data.pose.position.y = 4.25;
                 data.pose.orientation.z = -0.707;
                 data.pose.orientation.w = 0.707;
             }
             else if(start_side == "right")
             {
-                data.pose.position.y = -4.0;
+                data.pose.position.y = -4.25;
                 data.pose.orientation.z = 0.707;
                 data.pose.orientation.w = 0.707;
             }
@@ -1164,7 +1187,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
             return;
         }
         RCLCPP_DEBUG(this->get_logger(), "state: %d", static_cast<int>(state_));
-        RCLCPP_DEBUG(this->get_logger(), "left: %d,right: %d", left_ball_count, right_ball_count);
+        RCLCPP_INFO(this->get_logger(), "left: %d,right: %d", left_ball_count, right_ball_count);
         state_last = state_;
         tracking_ball_last = tracking_ball;
         goal_handle->publish_feedback(feedback);
@@ -1174,121 +1197,147 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
     if(rclcpp::ok())
     {
         result->state = 0;
-        /*
-        if(left_ball_count != 0 && left_ball_count >= right_ball_count)
+        if(toward == TOWARD::FRONT)
         {
-            geometry_msgs::msg::PoseStamped data;
-            data.pose.position.x = 10.05;
-            //******* 待增加对面场次的判断 *********
-            if(start_side == "left")
+            if(left_ball_count != 0 && left_ball_count >= right_ball_count)
             {
+                geometry_msgs::msg::PoseStamped data;
+                data.pose.position.x = 10.05;
+                //******* 待增加对面场次的判断 *********
+                if(start_side == "left")
+                {
+                    data.header.frame_id = "map";
+                    data.header.stamp = this->now();
+                    data.pose.position.y = 4.25;
+                    data.pose.position.z = 0.0;
+                    data.pose.orientation.x = 0.0;
+                    data.pose.orientation.y = 0.0;
+                    data.pose.orientation.z = 0.0;
+                    data.pose.orientation.w = 1.0;
+                }
+                else if(start_side == "right")
+                {
+                    data.header.frame_id = "map";
+                    data.header.stamp = this->now();
+                    data.pose.position.y = -4.25;
+                    data.pose.position.z = 0.0;
+                    data.pose.orientation.x = 0.0;
+                    data.pose.orientation.y = 0.0;
+                    data.pose.orientation.z = -1.0;
+                    data.pose.orientation.w = 0.0;
+                }
+                //******* ----------------- *********
+                
+                goal_update_->publish(data);
+                RCLCPP_INFO(this->get_logger(), "Toward: Left");
+                toward = TOWARD::LEFT;
+                left_ball_count --;
+                if(left_ball_count < 0) left_ball_count = 0;
+            }else if(right_ball_count != 0 && left_ball_count < right_ball_count)
+            {
+                geometry_msgs::msg::PoseStamped data;
+                data.pose.position.x = 10.05;
+                //******* 待增加对面场次的判断 *********
+                if(start_side == "left")
+                {
+                    data.header.frame_id = "map";
+                    data.header.stamp = this->now();
+                    data.pose.position.y = 4.25;
+                    data.pose.position.z = 0.0;
+                    data.pose.orientation.x = 0.0;
+                    data.pose.orientation.y = 0.0;
+                    data.pose.orientation.z = -1.0;
+                    data.pose.orientation.w = 0.0;
+                }
+                else if(start_side == "right")
+                {
+                    data.header.frame_id = "map";
+                    data.header.stamp = this->now();
+                    data.pose.position.y = -4.25;
+                    data.pose.position.z = 0.0;
+                    data.pose.orientation.x = 0.0;
+                    data.pose.orientation.y = 0.0;
+                    data.pose.orientation.z = 0.0;
+                    data.pose.orientation.w = 1.0;
+                }
+                //******* ----------------- *********
+                
+                goal_update_->publish(data);
+                right_ball_count --;
+                if(right_ball_count <0 ) right_ball_count = 0;
+                toward = TOWARD::RIGHT;
+                RCLCPP_INFO(this->get_logger(), "Toward: Right");
+            }else {
+                geometry_msgs::msg::PoseStamped data;
+                data.pose.position.x = 10.05;
+                //******* 待增加对面场次的判断 ********
+                if(start_side == "left")
+                    {
+                        data.pose.position.y =4.25;
+                        data.pose.orientation.z = -0.707;
+                        data.pose.orientation.w = 0.707;
+                    }
+                else if(start_side == "right")
+                    {
+                    data.pose.position.y = -4.25;
+                    data.pose.orientation.z = 0.707;
+                    data.pose.orientation.w = 0.707;
+                    }
+                //******* ----------------- ********
                 data.header.frame_id = "map";
                 data.header.stamp = this->now();
-                data.pose.position.y = 3.85;
                 data.pose.position.z = 0.0;
                 data.pose.orientation.x = 0.0;
                 data.pose.orientation.y = 0.0;
-                data.pose.orientation.z = 0.0;
-                data.pose.orientation.w = 1.0;
-            }
-            else if(start_side == "right")
-            {
-                data.header.frame_id = "map";
-                data.header.stamp = this->now();
-                data.pose.position.y = -3.85;
-                data.pose.position.z = 0.0;
-                data.pose.orientation.x = 0.0;
-                data.pose.orientation.y = 0.0;
-                data.pose.orientation.z = -1.0;
-                data.pose.orientation.w = 0.0;
-            }
-            //******* ----------------- *********
-            
-            goal_update_->publish(data);
-            RCLCPP_INFO(this->get_logger(), "Toward: Left");
-            toward = TOWARD::LEFT;
-            left_ball_count --;
-            if(left_ball_count < 0) left_ball_count = 0;
-        }else if(right_ball_count != 0 && left_ball_count < right_ball_count)
-        {
-            geometry_msgs::msg::PoseStamped data;
-            data.pose.position.x = 10.05;
-            //******* 待增加对面场次的判断 *********
-            if(start_side == "left")
-            {
-                data.header.frame_id = "map";
-                data.header.stamp = this->now();
-                data.pose.position.y = 3.85;
-                data.pose.position.z = 0.0;
-                data.pose.orientation.x = 0.0;
-                data.pose.orientation.y = 0.0;
-                data.pose.orientation.z = -1.0;
-                data.pose.orientation.w = 0.0;
-            }
-            else if(start_side == "right")
-            {
-                data.header.frame_id = "map";
-                data.header.stamp = this->now();
-                data.pose.position.y = -3.85;
-                data.pose.position.z = 0.0;
-                data.pose.orientation.x = 0.0;
-                data.pose.orientation.y = 0.0;
-                data.pose.orientation.z = 0.0;
-                data.pose.orientation.w = 1.0;
-            }
-            //******* ----------------- *********
-            
-            goal_update_->publish(data);
-            right_ball_count --;
-            if(right_ball_count <0 ) right_ball_count = 0;
-            toward = TOWARD::RIGHT;
-            RCLCPP_INFO(this->get_logger(), "Toward: Right");
-        }else {
-            geometry_msgs::msg::PoseStamped data;
-            data.pose.position.x = 10.05;
-            //******* 待增加对面场次的判断 ********
-            if(start_side == "left")
-                data.pose.position.y = 2.1;
-            else if(start_side == "right")
-                data.pose.position.y = -2.1;
-            //******* ----------------- ********
-            data.header.frame_id = "map";
-            data.header.stamp = this->now();
-            data.pose.position.z = 0.0;
-            data.pose.orientation.x = 0.0;
-            data.pose.orientation.y = 0.0;
-            data.pose.orientation.z = -0.707;
-            data.pose.orientation.w = 0.707;
-            goal_update_->publish(data);
-            toward = TOWARD::FRONT;
-            RCLCPP_INFO(this->get_logger(), "Toward: Front");
-        }
-        */
-        geometry_msgs::msg::PoseStamped data;
-        data.pose.position.x = 10.05;
-        //******* 待增加对面场次的判断 ********
-        if(start_side == "left")
-        {
-            data.pose.position.y = 4.25;
-            data.pose.orientation.z = -0.707;
-            data.pose.orientation.w = 0.707;
-        }
-        else if(start_side == "right")
-        {
-            data.pose.position.y = -4.25;
-            data.pose.orientation.z = 0.707;
-            data.pose.orientation.w = 0.707;
-        }
-        //******* ----------------- ********
-        data.header.frame_id = "map";
-        data.header.stamp = this->now();
-        data.pose.position.z = 0.0;
-        data.pose.orientation.x = 0.0;
-        data.pose.orientation.y = 0.0;
 
-        goal_update_->publish(data);
-        toward = TOWARD::FRONT;
-        RCLCPP_INFO(this->get_logger(), "Toward: Front");
+                goal_update_->publish(data);
+                toward = TOWARD::FRONT;
+                RCLCPP_INFO(this->get_logger(), "Toward: Front");
+            }
+        }else if(toward == TOWARD::LEFT)
+        {
+            left_ball_count = ball_info_.size();
+            left_ball_count -- ;
+            if(left_ball_count <= 0){
+                left_ball_count = 0;
+                
+            }
+            
+        }else if(toward == TOWARD::RIGHT)
+        {
+            right_ball_count = ball_info_.size();
+            right_ball_count --;
+            if(right_ball_count <= 0){
+                right_ball_count = 0;
+
+            }
+        }
+        
+        // geometry_msgs::msg::PoseStamped data;
+        // data.pose.position.x = 10.05;
+        // //******* 待增加对面场次的判断 ********
+        // if(start_side == "left")
+        // {
+        //     data.pose.position.y = 4.25;
+        //     data.pose.orientation.z = -0.707;
+        //     data.pose.orientation.w = 0.707;
+        // }
+        // else if(start_side == "right")
+        // {
+        //     data.pose.position.y = -4.25;
+        //     data.pose.orientation.z = 0.707;
+        //     data.pose.orientation.w = 0.707;
+        // }
+        // //******* ----------------- ********
+        // data.header.frame_id = "map";
+        // data.header.stamp = this->now();
+        // data.pose.position.z = 0.0;
+        // data.pose.orientation.x = 0.0;
+        // data.pose.orientation.y = 0.0;
+
+        // goal_update_->publish(data);
+        // toward = TOWARD::FRONT;
+        // RCLCPP_INFO(this->get_logger(), "Toward: Front");
         goal_handle->succeed(result);
         RCLCPP_INFO(this->get_logger(), "Goal succeeded");
         // if(!change_state(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE))

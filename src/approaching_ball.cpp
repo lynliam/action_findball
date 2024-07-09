@@ -364,7 +364,6 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 static int crash_time = 0;
 
                 if(fabs(JointState_.position[0])>2.0) {
-
                 }
                 
                 //  Enter State
@@ -410,8 +409,9 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                 if(is_found_ == false)
                 {
                     not_found_ ++;
-                    if(not_found_ >= 20)
+                    if(not_found_ >= 40)
                     {
+                        RCLCPP_INFO(this->get_logger(), "approaching not_found \n");
                         stay_calm = 0;
                         crash_time = 0; 
                         JointControl_to_pub->effort[0] = 10.0;
@@ -710,7 +710,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                         state_entry_time__ = this->now();
                         count__ = 0;
                     }
-                    if(this->now() - state_entry_time__ > rclcpp::Duration::from_seconds(4))
+                    if(this->now() - state_entry_time__ > rclcpp::Duration::from_seconds(7))
                     {
                         stay_calm = 0;
                         crash_time = 0;
@@ -1000,6 +1000,21 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                         state_angle_direction = 2;
                     }
                 }
+
+                if(JointState_.position[0] > 3)
+                {
+                    JointControl_to_pub->effort[0] = 10.0;
+                    JointControl_to_pub->velocity[0] = -12;
+                    up_pub_->publish(*JointControl_to_pub);
+                    break;
+                }else if(JointState_.position[0] < -3)
+                {
+                    JointControl_to_pub->effort[0] = 10.0;
+                    JointControl_to_pub->velocity[0] = 12;
+                    up_pub_->publish(*JointControl_to_pub);
+                    break;
+                }
+
                 //向左旋转云台 90 度
                 if(state_angle_direction == 0)
                 {
@@ -1126,8 +1141,8 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
                     state_ =  APPROACHINGBALL::FAIL;
                 }
                 
-                RCLCPP_DEBUG(this->get_logger(), "state:Finding, %d", state_angle_direction);
-                RCLCPP_INFO(this->get_logger(), "toward: %d, left: %d, right %d", static_cast<int>(toward), left_ball_count, right_ball_count);
+                // RCLCPP_INFO(this->get_logger(), "state:Finding, %d", state_angle_direction);
+                //RCLCPP_INFO(this->get_logger(), "toward: %d, left: %d, right %d", static_cast<int>(toward), left_ball_count, right_ball_count);
                 break;
             }
         }
@@ -1186,8 +1201,8 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
             goal_handle->abort(result);
             return;
         }
-        RCLCPP_DEBUG(this->get_logger(), "state: %d", static_cast<int>(state_));
-        RCLCPP_INFO(this->get_logger(), "left: %d,right: %d", left_ball_count, right_ball_count);
+        RCLCPP_INFO(this->get_logger(), "state: %d", static_cast<int>(state_));
+        //RCLCPP_INFO(this->get_logger(), "left: %d,right: %d", left_ball_count, right_ball_count);
         state_last = state_;
         tracking_ball_last = tracking_ball;
         goal_handle->publish_feedback(feedback);
@@ -1197,6 +1212,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
     if(rclcpp::ok())
     {
         result->state = 0;
+        /*
         if(toward == TOWARD::FRONT)
         {
             if(left_ball_count != 0 && left_ball_count >= right_ball_count)
@@ -1312,7 +1328,7 @@ void action_findball::ApproachingBall::execute(const std::shared_ptr<GoalHandleE
 
             }
         }
-        
+        */
         // geometry_msgs::msg::PoseStamped data;
         // data.pose.position.x = 10.05;
         // //******* 待增加对面场次的判断 ********

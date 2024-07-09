@@ -3,6 +3,7 @@
 #include "ximgproc/find_ellipses.hpp"
 #include <iostream>
 #include "calibration.hpp"
+#include <ctime>
 // #define UP_DEBUG
 
 //#define ENABLE_THRESHOLD
@@ -41,8 +42,8 @@ cv::Scalar upper_blue = cv::Scalar(130, 233, 255);
 // cv::Scalar lower_blue = cv::Scalar(100, 147, 0);
 // cv::Scalar upper_blue = cv::Scalar(132, 233, 255);
 
-cv::Scalar lower_red = cv::Scalar(157, 177, 0);
-cv::Scalar upper_red = cv::Scalar(190, 251, 255);
+cv::Scalar lower_red = cv::Scalar(149, 189, 0);
+cv::Scalar upper_red = cv::Scalar(230, 239, 255);
 cv::Scalar lower_red_1 = cv::Scalar(0, 0, 0);
 cv::Scalar upper_red_1 = cv::Scalar(0, 0, 255);
 

@@ -34,7 +34,7 @@ namespace PublisherFindballCPP {
         public:
             explicit PublisherFindball(const std::string & node_name, bool intra_process_comms = false)
             :rclcpp_lifecycle::LifecycleNode(node_name,rclcpp::NodeOptions().use_intra_process_comms(intra_process_comms)),
-            signal(false),stop(false)
+            signal(false),stop(false),photo_count(0)
             {
                 RCLCPP_INFO(this->get_logger(), "PublisherFindball Node has been created");
                 declare_parameter<int>("balltype", 2);
@@ -121,6 +121,22 @@ namespace PublisherFindballCPP {
                     color_img = findball_server_handler->combinedImage;
                     if(!color_img.empty())
                     {
+                        if(photo_count <= 20)
+                        {
+                            // 获取当前时间
+                            time_t rawtime;
+                            struct tm * timeinfo;
+                            char buffer [80];
+                            time (&rawtime);
+                            timeinfo = localtime(&rawtime);
+                            // 将时间格式化为字符串
+                            strftime(buffer,80,"%Y-%m-%d_%H-%M-%S",timeinfo);
+                            std::string filename = std::string(buffer) + std::to_string(photo_count) + ".jpg";
+                            RCLCPP_INFO(this->get_logger(), "Save photo %s", filename.c_str());
+                            cv::imwrite(filename, findball_server_handler->color_image);
+                            photo_count ++;
+                        }
+
                         cv::imencode(".jpg", color_img, buf);
                         std::string img_data(buf.begin(), buf.end());
                         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, img_data.c_str());
@@ -282,6 +298,7 @@ namespace PublisherFindballCPP {
             std::shared_ptr<rclcpp::QoS> qos_profile;
 
             int camera_flag;
+            int photo_count;
 
             CURL* curl;
             CURLcode res;

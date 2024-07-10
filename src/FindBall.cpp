@@ -19,8 +19,13 @@ void onTrackbar(int, void*) {
 
 enum BallType { RED = 0, PURPLE = 1, BLUE = 2 };
 
-cv::Scalar lower_purple = cv::Scalar(128, 120, 0);
-cv::Scalar upper_purple = cv::Scalar(191, 230, 255);
+cv::Scalar lower_blue = cv::Scalar(131, 120, 0);
+cv::Scalar upper_blue = cv::Scalar(255, 255, 255);
+cv::Scalar lower_purple = cv::Scalar(100, 147, 0);
+cv::Scalar upper_purple = cv::Scalar(130, 233, 255);
+
+// ***cv::Scalar lower_purple = cv::Scalar(131, 120, 0);
+// ***cv::Scalar upper_purple = cv::Scalar(255, 255, 255);
 // cv::Scalar lower_blue = cv::Scalar(104, 104, 0);
 // cv::Scalar upper_blue = cv::Scalar(123, 215, 255);
 
@@ -35,15 +40,15 @@ cv::Scalar upper_purple = cv::Scalar(191, 230, 255);
 // cv::Scalar upper_blue = cv::Scalar(133, 232, 255);
 
 // 7-5  noon
-cv::Scalar lower_blue = cv::Scalar(100, 147, 0);
-cv::Scalar upper_blue = cv::Scalar(130, 233, 255);
+// ***cv::Scalar lower_blue = cv::Scalar(100, 147, 0);
+// ***cv::Scalar upper_blue = cv::Scalar(130, 233, 255);
 
 // 7-6  noon
 // cv::Scalar lower_blue = cv::Scalar(100, 147, 0);
 // cv::Scalar upper_blue = cv::Scalar(132, 233, 255);
 
-cv::Scalar lower_red = cv::Scalar(149, 189, 0);
-cv::Scalar upper_red = cv::Scalar(230, 239, 255);
+cv::Scalar lower_red = cv::Scalar(169, 120, 0);
+cv::Scalar upper_red = cv::Scalar(250, 250, 255);
 cv::Scalar lower_red_1 = cv::Scalar(0, 0, 0);
 cv::Scalar upper_red_1 = cv::Scalar(0, 0, 255);
 
